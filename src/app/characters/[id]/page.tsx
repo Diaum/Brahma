@@ -726,30 +726,33 @@ export default function CharacterPage() {
                         className="bg-background border border-border rounded-xl overflow-hidden group"
                       >
                         {/* Image */}
-                        {shot.image_url ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewShot(shot)}
-                            className="cursor-pointer w-full"
-                          >
-                            <img
-                              src={shot.image_url}
-                              alt={shot.prompt_scene}
-                              className="w-full h-40 object-cover"
-                            />
-                          </button>
-                        ) : (
-                          <div className="w-full h-40 flex items-center justify-center text-muted bg-card">
-                            {isGenerating ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                                <span className="text-xs">Gerando...</span>
-                              </div>
-                            ) : (
-                              <span className="text-sm">Sem imagem</span>
-                            )}
-                          </div>
-                        )}
+                        <div className="relative">
+                          {shot.image_url ? (
+                            <button
+                              type="button"
+                              onClick={() => !isGenerating && setPreviewShot(shot)}
+                              className="cursor-pointer w-full"
+                            >
+                              <img
+                                src={shot.image_url}
+                                alt={shot.prompt_scene}
+                                className={`w-full h-40 object-cover transition ${isGenerating ? "opacity-40" : ""}`}
+                              />
+                            </button>
+                          ) : (
+                            <div className="w-full h-40 flex items-center justify-center text-muted bg-card">
+                              {isGenerating ? null : (
+                                <span className="text-sm">Sem imagem</span>
+                              )}
+                            </div>
+                          )}
+                          {isGenerating && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-t-xl">
+                              <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                              <span className="text-xs text-white mt-2">Gerando...</span>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Info + actions */}
                         <div className="p-3">
