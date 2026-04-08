@@ -233,7 +233,13 @@ export function buildCinematicPrompt(
   age: number,
   descriptionEn: string
 ): string {
-  return `Cinematic still frame of ${name}, a ${age}-year-old Brazilian man, ${descriptionEn}. Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast. Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
+  return `Cinematic still frame of a ${age}-year-old Brazilian man, ${descriptionEn}.
+
+The bedroom is small and cramped — unmade bed with wrinkled sheets in the background, clothes thrown on the floor, empty energy drink cans and food wrappers on the desk, tangled cables, peeling paint walls, a single bare lightbulb barely lighting the room. The monitor glow is the dominant light source, creating a cold blue fill on the face with deep warm shadows behind him. His flip-flops resting flat on the dirty tile floor.
+
+Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast between the cold monitor light and the warm dim ambient.
+
+Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
 }
 
 export async function translateScene(scenePt: string): Promise<string> {

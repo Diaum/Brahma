@@ -58,9 +58,13 @@ alter table episodes enable row level security;
 alter table shots enable row level security;
 
 -- Políticas públicas — cada usuário roda sua própria instância Supabase
+drop policy if exists "Allow all on characters" on characters;
 create policy "Allow all on characters" on characters for all using (true) with check (true);
+drop policy if exists "Allow all on character_references" on character_references;
 create policy "Allow all on character_references" on character_references for all using (true) with check (true);
+drop policy if exists "Allow all on episodes" on episodes;
 create policy "Allow all on episodes" on episodes for all using (true) with check (true);
+drop policy if exists "Allow all on shots" on shots;
 create policy "Allow all on shots" on shots for all using (true) with check (true);
 
 -- ============================================================
@@ -72,21 +76,25 @@ values ('brahma-images', 'brahma-images', true)
 on conflict (id) do nothing;
 
 -- Política: leitura pública
+drop policy if exists "Public read access on brahma-images" on storage.objects;
 create policy "Public read access on brahma-images"
   on storage.objects for select
   using (bucket_id = 'brahma-images');
 
 -- Política: upload público (instância single-user)
+drop policy if exists "Public upload access on brahma-images" on storage.objects;
 create policy "Public upload access on brahma-images"
   on storage.objects for insert
   with check (bucket_id = 'brahma-images');
 
 -- Política: update público
+drop policy if exists "Public update access on brahma-images" on storage.objects;
 create policy "Public update access on brahma-images"
   on storage.objects for update
   using (bucket_id = 'brahma-images');
 
 -- Política: delete público
+drop policy if exists "Public delete access on brahma-images" on storage.objects;
 create policy "Public delete access on brahma-images"
   on storage.objects for delete
   using (bucket_id = 'brahma-images');
