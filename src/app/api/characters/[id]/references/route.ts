@@ -26,7 +26,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { image_url } = body;
+  const { image_url, approved } = body;
 
   if (!image_url) {
     return NextResponse.json(
@@ -37,7 +37,7 @@ export async function POST(
 
   const { data, error } = await supabase
     .from("character_references")
-    .insert({ character_id: id, image_url })
+    .insert({ character_id: id, image_url, approved: approved ?? false })
     .select()
     .single();
 
