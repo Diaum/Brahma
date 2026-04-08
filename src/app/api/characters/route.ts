@@ -1,9 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
-
-function buildCinematicPrompt(name: string, age: number, description: string): string {
-  return `Cinematic still frame of ${name}, a ${age}-year-old Brazilian man, ${description}. Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast. Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
-}
+import {
+  translateDescription,
+  buildCinematicPrompt,
+} from "@/lib/prompt-generator";
 
 export async function GET() {
   const { data, error } = await supabase
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, age, description_pt } = body;
+  const { name, age, description_pt, prompt_base_en: manualPrompt } = body;
 
   if (!name || !age || !description_pt) {
     return NextResponse.json(
@@ -29,7 +29,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const prompt_base_en = buildCinematicPrompt(name, age, description_pt);
+  let prompt_base_en: string;
+  if (manualPrompt) {
+    // User edited the prompt manually
+    prompt_base_en = manualPrompt;
+  } else {
+    // Auto-generate from Portuguese description
+    const descriptionEn = await translateDescription(description_pt);
+    prompt_base_en = buildCinematicPrompt(name, age, descriptionEn);
+  }
 
   const { data, error } = await supabase
     .from("characters")
