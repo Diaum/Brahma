@@ -228,6 +228,10 @@ export async function translateDescription(
   return translateWithDictionary(descriptionPt);
 }
 
+const CINEMATIC_STYLE = `Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast.
+
+Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
+
 export function buildCinematicPrompt(
   name: string,
   age: number,
@@ -235,11 +239,7 @@ export function buildCinematicPrompt(
 ): string {
   return `Cinematic still frame of a ${age}-year-old Brazilian man, ${descriptionEn}.
 
-The bedroom is small and cramped — unmade bed with wrinkled sheets in the background, clothes thrown on the floor, empty energy drink cans and food wrappers on the desk, tangled cables, peeling paint walls, a single bare lightbulb barely lighting the room. The monitor glow is the dominant light source, creating a cold blue fill on the face with deep warm shadows behind him. His flip-flops resting flat on the dirty tile floor.
-
-Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast between the cold monitor light and the warm dim ambient.
-
-Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
+${CINEMATIC_STYLE}`;
 }
 
 export async function translateScene(scenePt: string): Promise<string> {
@@ -284,5 +284,19 @@ export function composeFullPrompt(
   promptBaseEn: string,
   sceneEn: string
 ): string {
-  return `${promptBaseEn} Scene: ${sceneEn}`;
+  // Remove the cinematic style from base prompt — we'll re-add it after the scene
+  const styleMarker = "Shot on Arri Alexa";
+  const styleIdx = promptBaseEn.indexOf(styleMarker);
+
+  if (styleIdx > 0) {
+    const characterPart = promptBaseEn.substring(0, styleIdx).trim();
+    return `${characterPart} ${sceneEn}
+
+${CINEMATIC_STYLE}`;
+  }
+
+  // Fallback: just append
+  return `${promptBaseEn} ${sceneEn}
+
+${CINEMATIC_STYLE}`;
 }
