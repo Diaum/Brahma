@@ -1,14 +1,14 @@
 import { supabase } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
   const { data, error } = await supabase
-    .from("episodes")
+    .from("characters")
     .select("*")
     .eq("id", id)
     .single();
@@ -21,14 +21,14 @@ export async function GET(
 }
 
 export async function PUT(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const body = await request.json();
 
   const { data, error } = await supabase
-    .from("episodes")
+    .from("characters")
     .update(body)
     .eq("id", id)
     .select()
@@ -42,12 +42,15 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  const { error } = await supabase.from("episodes").delete().eq("id", id);
+  const { error } = await supabase
+    .from("characters")
+    .delete()
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

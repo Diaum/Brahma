@@ -1,16 +1,16 @@
 import { supabase } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: Request,
+  { params }: { params: Promise<{ id: string; episodeId: string; shotId: string }> }
 ) {
-  const { id } = await params;
+  const { shotId } = await params;
 
   const { data, error } = await supabase
-    .from("episodes")
+    .from("shots")
     .select("*")
-    .eq("id", id)
+    .eq("id", shotId)
     .single();
 
   if (error) {
@@ -21,16 +21,16 @@ export async function GET(
 }
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: Promise<{ id: string; episodeId: string; shotId: string }> }
 ) {
-  const { id } = await params;
+  const { shotId } = await params;
   const body = await request.json();
 
   const { data, error } = await supabase
-    .from("episodes")
+    .from("shots")
     .update(body)
-    .eq("id", id)
+    .eq("id", shotId)
     .select()
     .single();
 
@@ -42,12 +42,15 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: Request,
+  { params }: { params: Promise<{ id: string; episodeId: string; shotId: string }> }
 ) {
-  const { id } = await params;
+  const { shotId } = await params;
 
-  const { error } = await supabase.from("episodes").delete().eq("id", id);
+  const { error } = await supabase
+    .from("shots")
+    .delete()
+    .eq("id", shotId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
