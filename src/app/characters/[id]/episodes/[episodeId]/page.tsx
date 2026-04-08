@@ -45,6 +45,13 @@ export default function EpisodeShots() {
   const [strengthMap, setStrengthMap] = useState<Record<string, number>>({});
   const [previewShot, setPreviewShot] = useState<Shot | null>(null);
 
+  // New shot form state
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [sceneInput, setSceneInput] = useState("");
+  const [composedPrompt, setComposedPrompt] = useState<string | null>(null);
+  const [composing, setComposing] = useState(false);
+  const [creating, setCreating] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
       const [epRes, shotsRes] = await Promise.all([
@@ -81,6 +88,66 @@ export default function EpisodeShots() {
     return null;
   }
 
+  async function handleCompose() {
+    if (!sceneInput.trim()) return;
+    setComposing(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/characters/${id}/compose-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt_scene: sceneInput.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao compor prompt");
+      }
+
+      const data = await res.json();
+      setComposedPrompt(data.prompt_full);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setComposing(false);
+    }
+  }
+
+  async function handleCreateShot() {
+    if (!composedPrompt || !sceneInput.trim()) return;
+    setCreating(true);
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `/api/characters/${id}/episodes/${episodeId}/shots`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt_scene: sceneInput.trim(),
+            prompt_full: composedPrompt,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao criar shot");
+      }
+
+      setSceneInput("");
+      setComposedPrompt(null);
+      setShowNewForm(false);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function handleGenerate(shot: Shot) {
     setGeneratingId(shot.id);
     setError(null);
@@ -106,7 +173,6 @@ export default function EpisodeShots() {
         throw new Error(data.error || "Erro ao gerar imagem");
       }
 
-      // Reload shots to get updated data
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
@@ -146,6 +212,9 @@ export default function EpisodeShots() {
             <a href={`/characters/${id}/episodes/${episodeId}/script`}>
               <Button variant="secondary">Roteiro</Button>
             </a>
+            <Button onClick={() => setShowNewForm(!showNewForm)}>
+              {showNewForm ? "Cancelar" : "Novo Shot"}
+            </Button>
           </div>
         }
       />
@@ -160,6 +229,59 @@ export default function EpisodeShots() {
             ✕
           </button>
         </div>
+      )}
+
+      {/* New Shot Form */}
+      {showNewForm && (
+        <Card className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">Novo Shot</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-muted mb-1">
+                Descrição da cena (PT)
+              </label>
+              <textarea
+                value={sceneInput}
+                onChange={(e) => {
+                  setSceneInput(e.target.value);
+                  setComposedPrompt(null);
+                }}
+                placeholder="Ex: Em uma cadeira, mexendo no computador, close up, pessoas em volta"
+                rows={3}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCompose}
+                disabled={!sceneInput.trim() || composing}
+                variant="secondary"
+              >
+                {composing ? "Compondo..." : "Preview do prompt"}
+              </Button>
+            </div>
+
+            {composedPrompt && (
+              <div>
+                <label className="block text-sm text-muted mb-1">
+                  Prompt composto (EN)
+                </label>
+                <div className="bg-background border border-border rounded-lg p-3 text-sm text-foreground/80 max-h-40 overflow-y-auto">
+                  {composedPrompt}
+                </div>
+                <div className="mt-3">
+                  <Button
+                    onClick={handleCreateShot}
+                    disabled={creating}
+                  >
+                    {creating ? "Criando..." : "Criar Shot"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -254,7 +376,7 @@ export default function EpisodeShots() {
             </Card>
           );
         })}
-        {shots.length === 0 && (
+        {shots.length === 0 && !showNewForm && (
           <Card className="border-2 border-dashed border-border flex flex-col items-center justify-center text-muted min-h-[200px]">
             <span className="text-4xl mb-2">🎬</span>
             <span>Nenhum shot ainda</span>
@@ -277,8 +399,12 @@ export default function EpisodeShots() {
             />
             <div className="space-y-2 text-sm">
               <p>
-                <span className="text-muted">Prompt: </span>
-                {previewShot.prompt_full || previewShot.prompt_scene}
+                <span className="text-muted">Cena (PT): </span>
+                {previewShot.prompt_scene}
+              </p>
+              <p>
+                <span className="text-muted">Prompt completo: </span>
+                {previewShot.prompt_full}
               </p>
               <p>
                 <span className="text-muted">Status: </span>

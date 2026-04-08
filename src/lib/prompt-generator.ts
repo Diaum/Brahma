@@ -235,3 +235,48 @@ export function buildCinematicPrompt(
 ): string {
   return `Cinematic still frame of ${name}, a ${age}-year-old Brazilian man, ${descriptionEn}. Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast. Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
 }
+
+export async function translateScene(scenePt: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const prompt = `Translate the following Brazilian Portuguese scene description into English. Keep it concise and descriptive, suitable for an image generation prompt. Do NOT add any commentary, just the translated scene description.
+
+Portuguese: "${scenePt}"
+
+English:`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 256,
+            },
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) return text;
+      }
+    } catch {
+      // Fall through to dictionary translation
+    }
+  }
+
+  return translateWithDictionary(scenePt);
+}
+
+export function composeFullPrompt(
+  promptBaseEn: string,
+  sceneEn: string
+): string {
+  return `${promptBaseEn} Scene: ${sceneEn}`;
+}
