@@ -152,17 +152,9 @@ export default function CharacterPage() {
     }
   }
 
-  // --- Delete episode ---
-  async function handleDeleteEpisode(epId: string) {
-    const res = await fetch(`/api/episodes/${epId}`, { method: "DELETE" });
-    if (res.ok) {
-      setEpisodes((prev) => prev.filter((e) => e.id !== epId));
-      setShotsByEp((prev) => {
-        const updated = { ...prev };
-        delete updated[epId];
-        return updated;
-      });
-    }
+  // Delete episode triggers confirmation
+  function handleDeleteEpisode(epId: string, title: string) {
+    setDeleteTarget({ type: "episode", epId, title });
   }
 
   // --- Open shot form for episode ---
@@ -309,21 +301,40 @@ export default function CharacterPage() {
     }
   }
 
-  // --- Delete shot ---
-  async function handleDeleteShot(shot: Shot) {
-    const res = await fetch(
-      `/api/characters/${id}/episodes/${shot.episode_id}/shots/${shot.id}`,
-      { method: "DELETE" }
-    );
-    if (res.ok) {
-      setShotsByEp((prev) => ({
-        ...prev,
-        [shot.episode_id]: (prev[shot.episode_id] || []).filter(
-          (s) => s.id !== shot.id
-        ),
-      }));
-      if (previewShot?.id === shot.id) setPreviewShot(null);
+  // --- Delete shot (with confirmation) ---
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "shot"; shot: Shot } | { type: "episode"; epId: string; title: string } | null>(null);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === "shot") {
+      const shot = deleteTarget.shot;
+      const res = await fetch(
+        `/api/characters/${id}/episodes/${shot.episode_id}/shots/${shot.id}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        setShotsByEp((prev) => ({
+          ...prev,
+          [shot.episode_id]: (prev[shot.episode_id] || []).filter(
+            (s) => s.id !== shot.id
+          ),
+        }));
+        if (previewShot?.id === shot.id) setPreviewShot(null);
+      }
+    } else {
+      const res = await fetch(`/api/episodes/${deleteTarget.epId}`, { method: "DELETE" });
+      if (res.ok) {
+        setEpisodes((prev) => prev.filter((e) => e.id !== deleteTarget.epId));
+        setShotsByEp((prev) => {
+          const updated = { ...prev };
+          delete updated[deleteTarget.epId];
+          return updated;
+        });
+      }
     }
+
+    setDeleteTarget(null);
   }
 
   // --- Download ---
@@ -486,7 +497,7 @@ export default function CharacterPage() {
                     </Button>
                   )}
                   <button
-                    onClick={() => handleDeleteEpisode(ep.id)}
+                    onClick={() => handleDeleteEpisode(ep.id, ep.title)}
                     className="text-muted hover:text-red-400 transition text-sm cursor-pointer px-1"
                   >
                     ✕
@@ -596,7 +607,7 @@ export default function CharacterPage() {
                               </span>
                             </div>
                             <button
-                              onClick={() => handleDeleteShot(shot)}
+                              onClick={() => setDeleteTarget({ type: "shot", shot })}
                               className="text-muted hover:text-red-400 text-xs cursor-pointer opacity-0 group-hover:opacity-100 transition"
                             >
                               ✕
@@ -652,6 +663,64 @@ export default function CharacterPage() {
           );
         })}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl max-w-sm w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h2 className="text-lg font-semibold mb-3">
+                Excluir {deleteTarget.type === "shot" ? "shot" : "episodio"}?
+              </h2>
+              <p className="text-muted text-sm mb-6">
+                {deleteTarget.type === "shot" ? (
+                  <>
+                    O shot{" "}
+                    <strong className="text-foreground">
+                      &quot;{deleteTarget.shot.prompt_scene.slice(0, 50)}
+                      {deleteTarget.shot.prompt_scene.length > 50 ? "..." : ""}
+                      &quot;
+                    </strong>{" "}
+                    {deleteTarget.shot.image_url
+                      ? "e sua imagem serao removidos."
+                      : "sera removido."}{" "}
+                    Esta acao nao pode ser desfeita.
+                  </>
+                ) : (
+                  <>
+                    O episodio{" "}
+                    <strong className="text-foreground">
+                      &quot;{deleteTarget.title}&quot;
+                    </strong>{" "}
+                    e todos os seus shots serao removidos. Esta acao nao pode
+                    ser desfeita.
+                  </>
+                )}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 text-sm text-muted hover:text-foreground transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="bg-red-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer text-sm"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Regen Modal */}
       {regenShot && (
@@ -783,7 +852,7 @@ export default function CharacterPage() {
                   </button>
                 )}
                 <button
-                  onClick={() => handleDeleteShot(previewShot)}
+                  onClick={() => setDeleteTarget({ type: "shot", shot: previewShot })}
                   className="text-muted hover:text-red-400 text-sm px-3 cursor-pointer"
                 >
                   Excluir
