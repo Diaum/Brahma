@@ -453,14 +453,18 @@ export default function CharacterPage() {
           URL.revokeObjectURL(url);
         }, "image/png");
       } else {
+        // Download original - open in new tab as fallback
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}-9x16.png`;
+        a.style.display = "none";
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
       }
     } catch {
       setError("Erro ao baixar imagem");
@@ -842,16 +846,16 @@ export default function CharacterPage() {
                             {shot.status === "approved" && shot.image_url && (
                               <>
                                 <button
-                                  onClick={() => handleDownload(shot, "original")}
-                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
+                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
+                                  className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition cursor-pointer"
                                 >
-                                  9:16
+                                  Download 9:16
                                 </button>
                                 <button
-                                  onClick={() => handleDownload(shot, "landscape")}
+                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "landscape"); }}
                                   className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
                                 >
-                                  16:9
+                                  Download 16:9
                                 </button>
                               </>
                             )}
