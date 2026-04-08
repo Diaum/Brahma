@@ -415,19 +415,53 @@ export default function CharacterPage() {
   }
 
   // --- Download ---
-  async function handleDownload(shot: Shot) {
+  async function handleDownload(shot: Shot, format: "original" | "landscape" = "original") {
     if (!shot.image_url) return;
     try {
       const res = await fetch(shot.image_url);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      if (format === "landscape") {
+        // Convert to 16:9 using canvas
+        const img = new Image();
+        const imgUrl = URL.createObjectURL(blob);
+        img.src = imgUrl;
+        await new Promise((resolve) => { img.onload = resolve; });
+        URL.revokeObjectURL(imgUrl);
+
+        const canvas = document.createElement("canvas");
+        const targetW = Math.max(img.width, Math.round(img.height * (16 / 9)));
+        const targetH = Math.round(targetW * (9 / 16));
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, targetW, targetH);
+        const x = Math.round((targetW - img.width) / 2);
+        const y = Math.round((targetH - img.height) / 2);
+        ctx.drawImage(img, x, y);
+
+        canvas.toBlob((b) => {
+          if (!b) return;
+          const url = URL.createObjectURL(b);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}-16x9.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, "image/png");
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}-9x16.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } catch {
       setError("Erro ao baixar imagem");
     }
@@ -736,11 +770,11 @@ export default function CharacterPage() {
                               <img
                                 src={shot.image_url}
                                 alt={shot.prompt_scene}
-                                className={`w-full h-40 object-cover transition ${isGenerating ? "opacity-40" : ""}`}
+                                className={`w-full aspect-[9/16] object-cover transition ${isGenerating ? "opacity-40" : ""}`}
                               />
                             </button>
                           ) : (
-                            <div className="w-full h-40 flex items-center justify-center text-muted bg-card">
+                            <div className="w-full aspect-[9/16] flex items-center justify-center text-muted bg-card">
                               {isGenerating ? null : (
                                 <span className="text-sm">Sem imagem</span>
                               )}
@@ -806,12 +840,20 @@ export default function CharacterPage() {
                               </>
                             )}
                             {shot.status === "approved" && shot.image_url && (
-                              <button
-                                onClick={() => handleDownload(shot)}
-                                className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
-                              >
-                                Download
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleDownload(shot, "original")}
+                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
+                                >
+                                  9:16
+                                </button>
+                                <button
+                                  onClick={() => handleDownload(shot, "landscape")}
+                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
+                                >
+                                  16:9
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -934,23 +976,33 @@ export default function CharacterPage() {
         </div>
       )}
 
-      {/* Preview Modal */}
+      {/* Preview Modal — vertical layout */}
       {previewShot && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={() => setPreviewShot(null)}
         >
           <div
-            className="bg-card border border-border rounded-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            className="flex gap-6 max-h-[90vh] mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    {previewShot.prompt_scene}
-                  </h2>
-                  <div className="flex items-center gap-2 mt-1">
+            {/* Image — vertical */}
+            {previewShot.image_url && (
+              <div className="shrink-0">
+                <img
+                  src={previewShot.image_url}
+                  alt={previewShot.prompt_scene}
+                  className="h-[80vh] w-auto rounded-2xl object-cover shadow-2xl"
+                />
+              </div>
+            )}
+
+            {/* Info panel */}
+            <div className="bg-card border border-border rounded-2xl w-80 shrink-0 flex flex-col max-h-[80vh] overflow-y-auto">
+              <div className="p-5 flex-1">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-2">
                     <div
                       className={`w-2.5 h-2.5 rounded-full ${statusDotColors[previewShot.status]}`}
                     />
@@ -958,67 +1010,77 @@ export default function CharacterPage() {
                       {statusLabels[previewShot.status]}
                     </span>
                   </div>
-                </div>
-                <button
-                  onClick={() => setPreviewShot(null)}
-                  className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {previewShot.image_url && (
-                <img
-                  src={previewShot.image_url}
-                  alt={previewShot.prompt_scene}
-                  className="w-full rounded-xl mb-4"
-                />
-              )}
-
-              <div className="bg-background rounded-lg p-4 mb-4">
-                <p className="text-xs text-muted mb-1 font-medium uppercase tracking-wide">
-                  Prompt
-                </p>
-                <p className="text-xs text-foreground/60 font-mono leading-relaxed">
-                  {previewShot.prompt_full}
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                {previewShot.status === "generated" && (
-                  <>
-                    <button
-                      onClick={() => handleApprove(previewShot)}
-                      className="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-700 transition cursor-pointer text-sm"
-                    >
-                      Aprovar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPreviewShot(null);
-                        setRegenShot(previewShot);
-                        setRegenExtra(previewShot.prompt_scene);
-                      }}
-                      className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
-                    >
-                      Regerar
-                    </button>
-                  </>
-                )}
-                {previewShot.status === "approved" && previewShot.image_url && (
                   <button
-                    onClick={() => handleDownload(previewShot)}
-                    className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
+                    onClick={() => setPreviewShot(null)}
+                    className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
                   >
-                    Download
+                    ✕
                   </button>
-                )}
-                <button
-                  onClick={() => setDeleteTarget({ type: "shot", shot: previewShot })}
-                  className="text-muted hover:text-red-400 text-sm px-3 cursor-pointer"
-                >
-                  Excluir
-                </button>
+                </div>
+
+                {/* Scene */}
+                <h2 className="text-base font-semibold mb-4">
+                  {previewShot.prompt_scene}
+                </h2>
+
+                {/* Prompt */}
+                <div className="bg-background rounded-lg p-3 mb-4">
+                  <p className="text-[10px] text-muted mb-1 font-medium uppercase tracking-wide">
+                    Prompt
+                  </p>
+                  <p className="text-[11px] text-foreground/50 font-mono leading-relaxed">
+                    {previewShot.prompt_full}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  {previewShot.status === "generated" && (
+                    <>
+                      <button
+                        onClick={() => handleApprove(previewShot)}
+                        className="w-full bg-green-600 text-white font-semibold px-4 py-2.5 rounded-lg hover:bg-green-700 transition cursor-pointer text-sm"
+                      >
+                        Aprovar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPreviewShot(null);
+                          setRegenShot(previewShot);
+                          setRegenExtra(previewShot.prompt_scene);
+                        }}
+                        className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
+                      >
+                        Regerar
+                      </button>
+                    </>
+                  )}
+                  {previewShot.status === "approved" &&
+                    previewShot.image_url && (
+                      <>
+                        <button
+                          onClick={() => handleDownload(previewShot, "original")}
+                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
+                        >
+                          Download 9:16
+                        </button>
+                        <button
+                          onClick={() => handleDownload(previewShot, "landscape")}
+                          className="w-full bg-card border border-border text-foreground font-medium px-4 py-2.5 rounded-lg hover:bg-card-hover transition cursor-pointer text-sm"
+                        >
+                          Download 16:9
+                        </button>
+                      </>
+                    )}
+                  <button
+                    onClick={() =>
+                      setDeleteTarget({ type: "shot", shot: previewShot })
+                    }
+                    className="w-full text-muted hover:text-red-400 text-sm py-2 transition cursor-pointer"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
             </div>
           </div>
