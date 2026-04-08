@@ -30,8 +30,14 @@ export async function POST(
     );
   }
 
+  // Translate scene from PT to EN
   const sceneEn = await translateScene(prompt_scene);
+
+  // Compose: character appearance + translated scene + cinematic style
   const prompt_full = composeFullPrompt(character.prompt_base_en, sceneEn);
 
-  return NextResponse.json({ prompt_full, scene_en: sceneEn });
+  return NextResponse.json({
+    prompt_full,
+    scene_en: sceneEn,
+  });
 }

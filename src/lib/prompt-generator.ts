@@ -244,37 +244,42 @@ ${CINEMATIC_STYLE}`;
 
 export async function translateScene(scenePt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
-    try {
-      const prompt = `Translate the following Brazilian Portuguese scene description into English. Keep it concise and descriptive, suitable for an image generation prompt. Do NOT add any commentary, just the translated scene description.
+  if (!apiKey) {
+    return translateWithDictionary(scenePt);
+  }
 
-Portuguese: "${scenePt}"
+  const prompt = `You are translating a scene description from Brazilian Portuguese to English for an AI image generation prompt.
 
-English:`;
+Translate this into vivid, descriptive English. Include the setting, action, camera angle, and mood. Output ONLY the English translation, nothing else.
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 256,
-            },
-          }),
-        }
-      );
+Portuguese: "${scenePt}"`;
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text) return text;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 512,
+          },
+        }),
       }
-    } catch {
-      // Fall through to dictionary translation
+    );
+
+    if (!res.ok) {
+      console.error("Gemini translate error:", res.status, await res.text());
+      return translateWithDictionary(scenePt);
     }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (text) return text;
+  } catch (err) {
+    console.error("Gemini translate exception:", err);
   }
 
   return translateWithDictionary(scenePt);
@@ -284,19 +289,32 @@ export function composeFullPrompt(
   promptBaseEn: string,
   sceneEn: string
 ): string {
-  // Remove the cinematic style from base prompt — we'll re-add it after the scene
-  const styleMarker = "Shot on Arri Alexa";
-  const styleIdx = promptBaseEn.indexOf(styleMarker);
+  // Extract only the character appearance (first paragraph/sentence before any scene description).
+  // We look for the first "Cinematic still frame of..." sentence and stop at the first double newline
+  // or at known scene markers like "The bedroom", "The room", "Shot on Arri"
+  const sceneMarkers = [
+    "The bedroom",
+    "The room",
+    "The house",
+    "The street",
+    "The bar",
+    "The office",
+    "Shot on Arri",
+    "\n\n",
+  ];
 
-  if (styleIdx > 0) {
-    const characterPart = promptBaseEn.substring(0, styleIdx).trim();
-    return `${characterPart} ${sceneEn}
-
-${CINEMATIC_STYLE}`;
+  let characterPart = promptBaseEn;
+  for (const marker of sceneMarkers) {
+    const idx = characterPart.indexOf(marker);
+    if (idx > 0) {
+      characterPart = characterPart.substring(0, idx).trim();
+    }
   }
 
-  // Fallback: just append
-  return `${promptBaseEn} ${sceneEn}
+  // Remove trailing period if present, we'll add structure
+  characterPart = characterPart.replace(/\.\s*$/, "");
+
+  return `${characterPart}. ${sceneEn}
 
 ${CINEMATIC_STYLE}`;
 }
