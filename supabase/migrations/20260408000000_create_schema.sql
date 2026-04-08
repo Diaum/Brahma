@@ -1,7 +1,11 @@
--- Brahma Database Schema
--- NOTA: Este arquivo é referência rápida. A fonte oficial são as migrations em supabase/migrations/
+-- Brahma v0.1.0 — Schema inicial do banco de dados
+-- Ref: Issue #3 / PRD #1
 
--- Characters table
+-- ============================================================
+-- 1. Tabelas
+-- ============================================================
+
+-- Personagem (characters)
 create table if not exists characters (
   id uuid default gen_random_uuid() primary key,
   name text not null,
@@ -11,7 +15,7 @@ create table if not exists characters (
   created_at timestamp with time zone default now()
 );
 
--- Character reference images
+-- Imagem de referência (character_references)
 create table if not exists character_references (
   id uuid default gen_random_uuid() primary key,
   character_id uuid not null references characters(id) on delete cascade,
@@ -20,7 +24,7 @@ create table if not exists character_references (
   created_at timestamp with time zone default now()
 );
 
--- Episodes
+-- Episódio (episodes)
 create table if not exists episodes (
   id uuid default gen_random_uuid() primary key,
   character_id uuid not null references characters(id) on delete cascade,
@@ -31,7 +35,7 @@ create table if not exists episodes (
   created_at timestamp with time zone default now()
 );
 
--- Shots
+-- Shot (shots)
 create table if not exists shots (
   id uuid default gen_random_uuid() primary key,
   episode_id uuid not null references episodes(id) on delete cascade,
@@ -44,19 +48,45 @@ create table if not exists shots (
   created_at timestamp with time zone default now()
 );
 
--- Storage bucket for images
-insert into storage.buckets (id, name, public)
-values ('brahma-images', 'brahma-images', true)
-on conflict (id) do nothing;
+-- ============================================================
+-- 2. Row Level Security (RLS)
+-- ============================================================
 
--- RLS policies
 alter table characters enable row level security;
 alter table character_references enable row level security;
 alter table episodes enable row level security;
 alter table shots enable row level security;
 
--- Public read/write for now (each user has their own Supabase instance)
+-- Políticas públicas — cada usuário roda sua própria instância Supabase
 create policy "Allow all on characters" on characters for all using (true) with check (true);
 create policy "Allow all on character_references" on character_references for all using (true) with check (true);
 create policy "Allow all on episodes" on episodes for all using (true) with check (true);
 create policy "Allow all on shots" on shots for all using (true) with check (true);
+
+-- ============================================================
+-- 3. Storage — bucket público para imagens
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('brahma-images', 'brahma-images', true)
+on conflict (id) do nothing;
+
+-- Política: leitura pública
+create policy "Public read access on brahma-images"
+  on storage.objects for select
+  using (bucket_id = 'brahma-images');
+
+-- Política: upload público (instância single-user)
+create policy "Public upload access on brahma-images"
+  on storage.objects for insert
+  with check (bucket_id = 'brahma-images');
+
+-- Política: update público
+create policy "Public update access on brahma-images"
+  on storage.objects for update
+  using (bucket_id = 'brahma-images');
+
+-- Política: delete público
+create policy "Public delete access on brahma-images"
+  on storage.objects for delete
+  using (bucket_id = 'brahma-images');
