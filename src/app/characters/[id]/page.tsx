@@ -72,6 +72,18 @@ export default function CharacterPage() {
   const [regenShot, setRegenShot] = useState<Shot | null>(null);
   const [regenExtra, setRegenExtra] = useState("");
 
+  // Collapsed episodes
+  const [collapsedEps, setCollapsedEps] = useState<Set<string>>(new Set());
+
+  function toggleCollapse(epId: string) {
+    setCollapsedEps((prev) => {
+      const next = new Set(prev);
+      if (next.has(epId)) next.delete(epId);
+      else next.add(epId);
+      return next;
+    });
+  }
+
   const loadData = useCallback(async () => {
     try {
       const [charRes, epsRes] = await Promise.all([
@@ -442,7 +454,15 @@ export default function CharacterPage() {
             >
               {/* Episode header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggleCollapse(ep.id)}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
+                  <span
+                    className={`text-muted text-xs transition-transform ${collapsedEps.has(ep.id) ? "" : "rotate-90"}`}
+                  >
+                    ▶
+                  </span>
                   <span className="text-accent font-mono text-sm font-bold">
                     EP {String(epIndex + 1).padStart(2, "0")}
                   </span>
@@ -450,19 +470,21 @@ export default function CharacterPage() {
                   <span className="text-xs text-muted">
                     {epShots.length} shot{epShots.length !== 1 ? "s" : ""}
                   </span>
-                </div>
+                </button>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      activeEpForm === ep.id
-                        ? setActiveEpForm(null)
-                        : openShotForm(ep.id)
-                    }
-                  >
-                    {activeEpForm === ep.id ? "Cancelar" : "+ Shot"}
-                  </Button>
+                  {!collapsedEps.has(ep.id) && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        activeEpForm === ep.id
+                          ? setActiveEpForm(null)
+                          : openShotForm(ep.id)
+                      }
+                    >
+                      {activeEpForm === ep.id ? "Cancelar" : "+ Shot"}
+                    </Button>
+                  )}
                   <button
                     onClick={() => handleDeleteEpisode(ep.id)}
                     className="text-muted hover:text-red-400 transition text-sm cursor-pointer px-1"
@@ -472,6 +494,8 @@ export default function CharacterPage() {
                 </div>
               </div>
 
+              {/* Collapsible content */}
+              {!collapsedEps.has(ep.id) && <>
               {/* New shot form (inline) */}
               {activeEpForm === ep.id && (
                 <div className="px-5 py-4 border-b border-border bg-background/50">
@@ -623,6 +647,7 @@ export default function CharacterPage() {
                   })}
                 </div>
               </div>
+              </>}
             </div>
           );
         })}

@@ -9,6 +9,11 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  // Hide sidebar on character detail pages (they have their own sidebar)
+  if (pathname.match(/^\/characters\/[^/]+$/)) {
+    return null;
+  }
+
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-border bg-card/50 p-4 gap-1">
       <nav className="flex flex-col gap-1">
