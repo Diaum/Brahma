@@ -47,6 +47,17 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
+  // Delete character images from storage
+  const { data: files } = await supabase.storage
+    .from("brahma-images")
+    .list(`characters/${id}`);
+
+  if (files && files.length > 0) {
+    const paths = files.map((f) => `characters/${id}/${f.name}`);
+    await supabase.storage.from("brahma-images").remove(paths);
+  }
+
+  // Delete character (cascades to references, episodes, shots)
   const { error } = await supabase
     .from("characters")
     .delete()

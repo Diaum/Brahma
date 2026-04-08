@@ -4,9 +4,17 @@ interface CharacterCardProps {
   age: number;
   description_pt?: string;
   cover_image_url?: string | null;
+  onDelete?: () => void;
 }
 
-export function CharacterCard({ id, name, age, description_pt, cover_image_url }: CharacterCardProps) {
+export function CharacterCard({
+  id,
+  name,
+  age,
+  description_pt,
+  cover_image_url,
+  onDelete,
+}: CharacterCardProps) {
   const initials = name
     .split(" ")
     .map((w) => w[0])
@@ -15,11 +23,8 @@ export function CharacterCard({ id, name, age, description_pt, cover_image_url }
     .toUpperCase();
 
   return (
-    <a
-      href={`/characters/${id}`}
-      className="block bg-card border border-border rounded-xl p-4 hover:bg-card-hover hover:border-accent/30 transition group"
-    >
-      <div className="flex flex-col items-center text-center gap-3">
+    <div className="relative bg-card border border-border rounded-xl p-4 hover:bg-card-hover hover:border-accent/30 transition group">
+      <a href={`/characters/${id}`} className="flex flex-col items-center text-center gap-3">
         {cover_image_url ? (
           <img
             src={cover_image_url}
@@ -38,7 +43,19 @@ export function CharacterCard({ id, name, age, description_pt, cover_image_url }
         {description_pt && (
           <p className="text-muted text-xs line-clamp-2">{description_pt}</p>
         )}
-      </div>
-    </a>
+      </a>
+      {onDelete && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute top-2 right-2 text-muted hover:text-red-400 transition opacity-0 group-hover:opacity-100 text-xs cursor-pointer"
+        >
+          Excluir
+        </button>
+      )}
+    </div>
   );
 }

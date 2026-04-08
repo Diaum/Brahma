@@ -39,7 +39,8 @@ export default function NewCharacter() {
   const [createdCharacter, setCreatedCharacter] = useState<Character | null>(
     null
   );
-  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [generatedImageBase64, setGeneratedImageBase64] = useState("");
+  const [generatedImageMime, setGeneratedImageMime] = useState("image/png");
 
   // Fetch all episodes (across all characters) for the optional link
   useEffect(() => {
@@ -172,7 +173,8 @@ export default function NewCharacter() {
       }
 
       const data = await res.json();
-      setGeneratedImageUrl(data.image_url);
+      setGeneratedImageBase64(data.image_base64);
+      setGeneratedImageMime(data.mime_type || "image/png");
       setStep("approval");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
@@ -181,28 +183,27 @@ export default function NewCharacter() {
   }
 
   async function handleApprove() {
-    if (!createdCharacter || !generatedImageUrl) return;
+    if (!createdCharacter || !generatedImageBase64) return;
     setLoading(true);
     setError("");
 
     try {
-      await Promise.all([
-        fetch(`/api/characters/${createdCharacter.id}/references`, {
+      const res = await fetch(
+        `/api/characters/${createdCharacter.id}/upload-cover`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            image_url: generatedImageUrl,
-            approved: true,
+            image_base64: generatedImageBase64,
+            mime_type: generatedImageMime,
           }),
-        }),
-        fetch(`/api/characters/${createdCharacter.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cover_image_url: generatedImageUrl,
-          }),
-        }),
-      ]);
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao salvar imagem");
+      }
 
       router.push(`/characters/${createdCharacter.id}`);
     } catch (err) {
@@ -215,7 +216,7 @@ export default function NewCharacter() {
   async function handleRegenerate() {
     if (!createdCharacter) return;
     setStep("generating");
-    setGeneratedImageUrl("");
+    setGeneratedImageBase64("");
     await generateCharacterImage(createdCharacter);
   }
 
@@ -279,11 +280,11 @@ export default function NewCharacter() {
           </div>
         )}
 
-        {generatedImageUrl ? (
+        {generatedImageBase64 ? (
           <div className="mb-8">
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <img
-                src={generatedImageUrl}
+                src={`data:${generatedImageMime};base64,${generatedImageBase64}`}
                 alt={`Imagem gerada de ${createdCharacter?.name}`}
                 className="w-full max-w-md mx-auto block"
               />
@@ -296,7 +297,7 @@ export default function NewCharacter() {
         )}
 
         <div className="flex gap-4">
-          {generatedImageUrl && (
+          {generatedImageBase64 && (
             <button
               onClick={handleApprove}
               disabled={loading}

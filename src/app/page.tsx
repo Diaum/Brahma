@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { PageHeader } from "@/components/ui";
-import { Button } from "@/components/ui";
-import { Card } from "@/components/ui";
+import { useEffect, useState, useCallback } from "react";
+import { PageHeader, Button, Card, Modal } from "@/components/ui";
 import { CharacterCard } from "@/components/CharacterCard";
 
 interface Character {
@@ -18,8 +16,11 @@ export default function Home() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
+  const loadCharacters = useCallback(() => {
+    setLoading(true);
     fetch("/api/characters")
       .then((res) => {
         if (!res.ok) throw new Error("Erro ao carregar personagens");
@@ -29,6 +30,43 @@ export default function Home() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadCharacters();
+  }, [loadCharacters]);
+
+  // Re-fetch when page becomes visible (fixes back navigation bug)
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        loadCharacters();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", loadCharacters);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", loadCharacters);
+    };
+  }, [loadCharacters]);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/characters/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setCharacters((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        setDeleteTarget(null);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div>
@@ -86,6 +124,7 @@ export default function Home() {
               age={char.age}
               description_pt={char.description_pt}
               cover_image_url={char.cover_image_url}
+              onDelete={() => setDeleteTarget(char)}
             />
           ))}
           <Card
@@ -97,6 +136,35 @@ export default function Home() {
           </Card>
         </div>
       )}
+
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Excluir personagem"
+      >
+        <p className="text-muted mb-6">
+          Tem certeza que deseja excluir{" "}
+          <strong className="text-foreground">{deleteTarget?.name}</strong>?
+          Todos os episodios, shots e imagens serao removidos. Esta acao nao
+          pode ser desfeita.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="ghost"
+            onClick={() => setDeleteTarget(null)}
+            disabled={deleting}
+          >
+            Cancelar
+          </Button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="bg-red-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition disabled:opacity-50 cursor-pointer text-sm"
+          >
+            {deleting ? "Excluindo..." : "Excluir"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

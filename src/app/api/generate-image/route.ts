@@ -63,29 +63,12 @@ export async function POST(request: Request) {
 
     const imageBuffer = Buffer.from(result.imageBase64, "base64");
 
-    // Character image generation flow
+    // Character image preview flow — return base64, no upload yet
     if (characterId) {
-      const fileName = `characters/${characterId}/${Date.now()}.png`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("brahma-images")
-        .upload(fileName, imageBuffer, {
-          contentType: result.mimeType,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        return NextResponse.json(
-          { error: `Erro no upload: ${uploadError.message}` },
-          { status: 500 }
-        );
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("brahma-images").getPublicUrl(fileName);
-
-      return NextResponse.json({ image_url: publicUrl });
+      return NextResponse.json({
+        image_base64: result.imageBase64,
+        mime_type: result.mimeType,
+      });
     }
 
     // Shot image generation flow (existing behavior)
