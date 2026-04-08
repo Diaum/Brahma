@@ -5,11 +5,25 @@ import { supabase } from "@/lib/supabase";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shotId, prompt, referenceImageUrl, aspectRatio, strength } = body;
+    const {
+      shotId,
+      characterId,
+      prompt,
+      referenceImageUrl,
+      aspectRatio,
+      strength,
+    } = body;
 
-    if (!shotId || !prompt) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: "shotId e prompt são obrigatórios" },
+        { error: "prompt é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    if (!shotId && !characterId) {
+      return NextResponse.json(
+        { error: "shotId ou characterId é obrigatório" },
         { status: 400 }
       );
     }
@@ -44,12 +58,38 @@ export async function POST(request: Request) {
       prompt: fullPrompt,
       referenceImageBase64,
       referenceImageMimeType,
-      aspectRatio: aspectRatio || "16:9",
+      aspectRatio: aspectRatio || "1:1",
     });
 
-    // Upload generated image to Supabase Storage
-    const fileName = `shots/${shotId}/${Date.now()}.png`;
     const imageBuffer = Buffer.from(result.imageBase64, "base64");
+
+    // Character image generation flow
+    if (characterId) {
+      const fileName = `characters/${characterId}/${Date.now()}.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("brahma-images")
+        .upload(fileName, imageBuffer, {
+          contentType: result.mimeType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        return NextResponse.json(
+          { error: `Erro no upload: ${uploadError.message}` },
+          { status: 500 }
+        );
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("brahma-images").getPublicUrl(fileName);
+
+      return NextResponse.json({ image_url: publicUrl });
+    }
+
+    // Shot image generation flow (existing behavior)
+    const fileName = `shots/${shotId}/${Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from("brahma-images")
