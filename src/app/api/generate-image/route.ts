@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       prompt: fullPrompt,
       referenceImageBase64,
       referenceImageMimeType,
-      aspectRatio: aspectRatio || "1:1",
+      aspectRatio: aspectRatio || "9:16",
     });
 
     const imageBuffer = Buffer.from(result.imageBase64, "base64");

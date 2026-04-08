@@ -163,7 +163,7 @@ export default function EpisodeShots() {
           shotId: shot.id,
           prompt: shot.prompt_full || shot.prompt_scene,
           referenceImageUrl,
-          aspectRatio: episode?.format || "16:9",
+          aspectRatio: episode?.format || "9:16",
           strength,
         }),
       });

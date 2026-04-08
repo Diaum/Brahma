@@ -338,7 +338,7 @@ export default function CharacterPage() {
         body: JSON.stringify({
           shotId: shot.id,
           prompt,
-          aspectRatio: "16:9",
+          aspectRatio: "9:16",
         }),
       });
 

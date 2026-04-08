@@ -17,7 +17,7 @@ export default function NewEpisode() {
 
   const [title, setTitle] = useState("");
   const [script, setScript] = useState("");
-  const [format, setFormat] = useState("16:9");
+  const [format, setFormat] = useState("9:16");
   const [order, setOrder] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
