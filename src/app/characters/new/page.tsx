@@ -8,16 +8,23 @@ export default function NewCharacter() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [descriptionPt, setDescriptionPt] = useState("");
+  const [promptBaseEn, setPromptBaseEn] = useState("");
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  async function handleGeneratePrompt() {
+    if (!name || !age || !descriptionPt) {
+      setError("Preencha nome, idade e descricao antes de gerar o prompt.");
+      return;
+    }
+
+    setGenerating(true);
     setError("");
 
     try {
-      const res = await fetch("/api/characters", {
+      const res = await fetch("/api/characters/preview-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -25,6 +32,44 @@ export default function NewCharacter() {
           age: parseInt(age),
           description_pt: descriptionPt,
         }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao gerar prompt");
+      }
+
+      const data = await res.json();
+      setPromptBaseEn(data.prompt_base_en);
+      setShowPrompt(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const payload: Record<string, unknown> = {
+        name,
+        age: parseInt(age),
+        description_pt: descriptionPt,
+      };
+
+      // Send the prompt if user previewed/edited it
+      if (showPrompt && promptBaseEn) {
+        payload.prompt_base_en = promptBaseEn;
+      }
+
+      const res = await fetch("/api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -108,6 +153,38 @@ export default function NewCharacter() {
             detalhe, melhor a consistencia.
           </p>
         </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={handleGeneratePrompt}
+            disabled={generating || !name || !age || !descriptionPt}
+            className="text-accent border border-accent font-semibold px-4 py-2 rounded-lg hover:bg-accent/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? "Gerando..." : "Visualizar Prompt"}
+          </button>
+        </div>
+
+        {showPrompt && (
+          <div>
+            <label
+              htmlFor="prompt"
+              className="block text-sm font-medium mb-2"
+            >
+              Prompt cinematografico (ingles)
+            </label>
+            <textarea
+              id="prompt"
+              value={promptBaseEn}
+              onChange={(e) => setPromptBaseEn(e.target.value)}
+              rows={8}
+              className="w-full bg-card border border-border rounded-lg px-4 py-3 text-foreground placeholder:text-muted focus:outline-none focus:border-accent transition resize-none font-mono text-sm"
+            />
+            <p className="text-muted text-sm mt-2">
+              Voce pode editar o prompt gerado antes de criar o personagem.
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-4">
           <button
