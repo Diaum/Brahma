@@ -155,12 +155,13 @@ export default function NewCharacter() {
   async function generateCharacterImage(character: Character) {
     setError("");
     try {
+      const closeupPrompt = `Extreme close-up portrait, head and shoulders only, shallow depth of field, face filling the frame. ${character.prompt_base_en}`;
       const res = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           characterId: character.id,
-          prompt: character.prompt_base_en,
+          prompt: closeupPrompt,
           aspectRatio: "1:1",
         }),
       });
@@ -185,14 +186,23 @@ export default function NewCharacter() {
     setError("");
 
     try {
-      await fetch(`/api/characters/${createdCharacter.id}/references`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image_url: generatedImageUrl,
-          approved: true,
+      await Promise.all([
+        fetch(`/api/characters/${createdCharacter.id}/references`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_url: generatedImageUrl,
+            approved: true,
+          }),
         }),
-      });
+        fetch(`/api/characters/${createdCharacter.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cover_image_url: generatedImageUrl,
+          }),
+        }),
+      ]);
 
       router.push(`/characters/${createdCharacter.id}`);
     } catch (err) {

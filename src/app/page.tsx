@@ -11,6 +11,7 @@ interface Character {
   name: string;
   age: number;
   description_pt?: string;
+  cover_image_url?: string | null;
 }
 
 export default function Home() {
@@ -84,6 +85,7 @@ export default function Home() {
               name={char.name}
               age={char.age}
               description_pt={char.description_pt}
+              cover_image_url={char.cover_image_url}
             />
           ))}
           <Card

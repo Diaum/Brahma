@@ -8,6 +8,7 @@ create table if not exists characters (
   age integer not null,
   description_pt text not null,
   prompt_base_en text not null,
+  cover_image_url text,
   created_at timestamp with time zone default now()
 );
 
