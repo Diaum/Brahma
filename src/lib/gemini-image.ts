@@ -41,6 +41,12 @@ export async function generateImage(
         aspectRatio: options.aspectRatio || "16:9",
       },
     },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+    ],
   };
 
   const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -55,9 +61,15 @@ export async function generateImage(
   }
 
   const data = await res.json();
+  console.log("[gemini-image] Response:", JSON.stringify(data).slice(0, 500));
   const candidates = data?.candidates;
   if (!candidates?.length) {
-    throw new Error("Nenhuma imagem gerada pela API");
+    const blockReason = data?.promptFeedback?.blockReason;
+    throw new Error(
+      blockReason
+        ? `Imagem bloqueada pela API: ${blockReason}`
+        : "Nenhuma imagem gerada pela API"
+    );
   }
 
   const responseParts = candidates[0]?.content?.parts;

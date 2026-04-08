@@ -110,6 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json(updatedShot);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
+    console.error("[generate-image] Error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
