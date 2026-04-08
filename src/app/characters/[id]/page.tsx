@@ -16,6 +16,7 @@ interface Character {
 interface Episode {
   id: string;
   title: string;
+  script: string | null;
   format: string;
   order: number;
 }
@@ -56,6 +57,29 @@ export default function CharacterPage() {
   // New episode
   const [newEpTitle, setNewEpTitle] = useState("");
   const [creatingEp, setCreatingEp] = useState(false);
+
+  // Script editing per episode
+  const [scriptDrafts, setScriptDrafts] = useState<Record<string, string>>({});
+  const [savingScript, setSavingScript] = useState<string | null>(null);
+
+  async function saveScript(epId: string) {
+    setSavingScript(epId);
+    try {
+      const res = await fetch(`/api/episodes/${epId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: scriptDrafts[epId] || "" }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setEpisodes((prev) =>
+          prev.map((e) => (e.id === epId ? { ...e, script: updated.script } : e))
+        );
+      }
+    } finally {
+      setSavingScript(null);
+    }
+  }
 
   // New shot (per episode)
   const [activeEpForm, setActiveEpForm] = useState<string | null>(null);
@@ -142,6 +166,13 @@ export default function CharacterPage() {
       if (epsRes.ok) {
         const epList: Episode[] = await epsRes.json();
         setEpisodes(epList);
+
+        // Init script drafts
+        const drafts: Record<string, string> = {};
+        epList.forEach((ep) => {
+          drafts[ep.id] = ep.script || "";
+        });
+        setScriptDrafts((prev) => ({ ...drafts, ...prev }));
 
         // Load shots for each episode
         const shotsMap: Record<string, Shot[]> = {};
@@ -605,6 +636,36 @@ export default function CharacterPage() {
 
               {/* Collapsible content */}
               {!collapsedEps.has(ep.id) && <>
+              {/* Script slot */}
+              <div className="px-5 py-4 border-b border-border bg-background/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted uppercase tracking-wide">
+                    Roteiro
+                  </span>
+                  {scriptDrafts[ep.id] !== (ep.script || "") && (
+                    <button
+                      onClick={() => saveScript(ep.id)}
+                      disabled={savingScript === ep.id}
+                      className="text-xs text-accent hover:text-accent/80 transition cursor-pointer font-medium"
+                    >
+                      {savingScript === ep.id ? "Salvando..." : "Salvar"}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={scriptDrafts[ep.id] ?? ""}
+                  onChange={(e) =>
+                    setScriptDrafts((prev) => ({
+                      ...prev,
+                      [ep.id]: e.target.value,
+                    }))
+                  }
+                  placeholder="Escreva o roteiro deste episodio... Descreva a narrativa, cenas e acoes que vao guiar os shots."
+                  rows={3}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent transition resize-y font-mono leading-relaxed"
+                />
+              </div>
+
               {/* New shot form (inline) */}
               {activeEpForm === ep.id && (
                 <div className="px-5 py-4 border-b border-border bg-background/50">
