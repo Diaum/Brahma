@@ -10,6 +10,12 @@
 !.yarn/releases
 !.yarn/versions
 
+#Maestro
+maestro-state
+maestro-state.json
+.maestro
+
+
 # testing
 /coverage
 
