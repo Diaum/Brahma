@@ -74,6 +74,10 @@ export default function CharacterPage() {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [previewShot, setPreviewShot] = useState<Shot | null>(null);
 
+  // Regen with extra prompt
+  const [regenShot, setRegenShot] = useState<Shot | null>(null);
+  const [regenExtra, setRegenExtra] = useState("");
+
   // Dragging state
   const [dragging, setDragging] = useState<string | null>(null);
   const dragState = useRef({ offsetX: 0, offsetY: 0, moved: false });
@@ -292,17 +296,33 @@ export default function CharacterPage() {
   }
 
   // --- Generate image ---
-  async function handleGenerate(shot: Shot) {
+  async function handleGenerate(shot: Shot, extraPrompt?: string) {
     setGeneratingId(shot.id);
+    setRegenShot(null);
+    setRegenExtra("");
     setError(null);
 
     try {
+      let prompt = shot.prompt_full || shot.prompt_scene;
+      if (extraPrompt?.trim()) {
+        // Translate the extra prompt and append
+        const translateRes = await fetch(`/api/characters/${id}/compose-prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt_scene: extraPrompt.trim() }),
+        });
+        if (translateRes.ok) {
+          const data = await translateRes.json();
+          prompt = data.prompt_full;
+        }
+      }
+
       const res = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotId: shot.id,
-          prompt: shot.prompt_full || shot.prompt_scene,
+          prompt,
           aspectRatio: "16:9",
         }),
       });
@@ -553,26 +573,34 @@ export default function CharacterPage() {
 
               {/* Actions */}
               <div className="px-2.5 pb-2.5 flex gap-2">
-                {(shot.status === "pending" || shot.status === "generated") && (
+                {shot.status === "pending" && (
                   <button
                     onClick={() => handleGenerate(shot)}
                     disabled={isGenerating}
                     className="flex-1 text-xs bg-accent text-black font-semibold py-1.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
                   >
-                    {isGenerating
-                      ? "Gerando..."
-                      : shot.image_url
-                        ? "Regerar"
-                        : "Gerar imagem"}
+                    {isGenerating ? "Gerando..." : "Gerar imagem"}
                   </button>
                 )}
                 {shot.status === "generated" && (
-                  <button
-                    onClick={() => handleApprove(shot.id)}
-                    className="flex-1 text-xs bg-green-600 text-white font-semibold py-1.5 rounded-lg hover:bg-green-700 transition cursor-pointer"
-                  >
-                    Aprovar
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setRegenShot(shot);
+                        setRegenExtra(shot.prompt_scene);
+                      }}
+                      disabled={isGenerating}
+                      className="flex-1 text-xs bg-accent text-black font-semibold py-1.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {isGenerating ? "Gerando..." : "Regerar"}
+                    </button>
+                    <button
+                      onClick={() => handleApprove(shot.id)}
+                      className="flex-1 text-xs bg-green-600 text-white font-semibold py-1.5 rounded-lg hover:bg-green-700 transition cursor-pointer"
+                    >
+                      Aprovar
+                    </button>
+                  </>
                 )}
                 {shot.status === "approved" && shot.image_url && (
                   <button
@@ -587,6 +615,59 @@ export default function CharacterPage() {
           );
         })}
       </div>
+
+      {/* Regen Modal */}
+      {regenShot && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setRegenShot(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl max-w-lg w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <h2 className="text-lg font-semibold">Regerar shot</h2>
+                <button
+                  onClick={() => setRegenShot(null)}
+                  className="text-muted hover:text-foreground transition text-xl cursor-pointer p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-muted text-sm mb-4">
+                Edite a descricao ou adicione detalhes para ajustar a geracao.
+              </p>
+
+              <textarea
+                value={regenExtra}
+                onChange={(e) => setRegenExtra(e.target.value)}
+                rows={4}
+                className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-accent transition mb-4"
+                placeholder={`${character?.name || "Personagem"} esta ...`}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleGenerate(regenShot, regenExtra)}
+                  disabled={generatingId === regenShot.id}
+                  className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
+                >
+                  {generatingId === regenShot.id ? "Gerando..." : "Regerar"}
+                </button>
+                <button
+                  onClick={() => setRegenShot(null)}
+                  className="text-muted hover:text-foreground transition text-sm px-3 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal — centered */}
       {previewShot && (
@@ -660,7 +741,8 @@ export default function CharacterPage() {
                     <button
                       onClick={() => {
                         setPreviewShot(null);
-                        handleGenerate(previewShot);
+                        setRegenShot(previewShot);
+                        setRegenExtra(previewShot.prompt_scene);
                       }}
                       className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
                     >
