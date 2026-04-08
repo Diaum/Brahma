@@ -75,6 +75,52 @@ export default function CharacterPage() {
   // Collapsed episodes
   const [collapsedEps, setCollapsedEps] = useState<Set<string>>(new Set());
 
+  // Edit character
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [savingChar, setSavingChar] = useState(false);
+
+  function startEditing() {
+    if (!character) return;
+    setEditName(character.name);
+    setEditAge(String(character.age));
+    setEditDesc(character.description_pt);
+    setEditing(true);
+  }
+
+  async function saveCharacter() {
+    if (!character) return;
+    setSavingChar(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/characters/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          age: parseInt(editAge),
+          description_pt: editDesc.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao salvar");
+      }
+
+      const updated = await res.json();
+      setCharacter(updated);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setSavingChar(false);
+    }
+  }
+
   function toggleCollapse(epId: string) {
     setCollapsedEps((prev) => {
       const next = new Set(prev);
@@ -378,12 +424,64 @@ export default function CharacterPage() {
                 {character?.name?.charAt(0) || "?"}
               </div>
             )}
-            <h2 className="text-lg font-bold">{character?.name}</h2>
-            <p className="text-muted text-sm">{character?.age} anos</p>
+
+            {editing ? (
+              <div className="w-full space-y-2 mt-1">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome"
+                  className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-center focus:outline-none focus:border-accent transition"
+                />
+                <input
+                  type="number"
+                  value={editAge}
+                  onChange={(e) => setEditAge(e.target.value)}
+                  placeholder="Idade"
+                  min={1}
+                  max={120}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-center focus:outline-none focus:border-accent transition"
+                />
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="Descricao fisica"
+                  rows={3}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-accent transition resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveCharacter}
+                    disabled={savingChar || !editName.trim()}
+                    className="flex-1 text-xs bg-accent text-black font-semibold py-1.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {savingChar ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="flex-1 text-xs text-muted hover:text-foreground py-1.5 rounded-lg border border-border transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold">{character?.name}</h2>
+                <p className="text-muted text-sm">{character?.age} anos</p>
+                <p className="text-muted text-xs mt-3 line-clamp-4">
+                  {character?.description_pt}
+                </p>
+                <button
+                  onClick={startEditing}
+                  className="text-xs text-muted hover:text-accent transition mt-3 cursor-pointer"
+                >
+                  Editar
+                </button>
+              </>
+            )}
           </div>
-          <p className="text-muted text-xs mt-3 line-clamp-4">
-            {character?.description_pt}
-          </p>
         </div>
 
         {/* Stats */}
