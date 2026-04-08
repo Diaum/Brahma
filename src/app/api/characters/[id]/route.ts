@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+import {
+  translateDescription,
+  buildCinematicPrompt,
+} from "@/lib/prompt-generator";
 
 export async function GET(
   _request: Request,
@@ -26,6 +30,25 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
+
+  // Regenerate prompt_base_en if appearance fields changed
+  if (body.name || body.age || body.description_pt) {
+    // Get current character to fill any missing fields
+    const { data: current } = await supabase
+      .from("characters")
+      .select("name, age, description_pt")
+      .eq("id", id)
+      .single();
+
+    if (current) {
+      const name = body.name || current.name;
+      const age = body.age || current.age;
+      const descPt = body.description_pt || current.description_pt;
+
+      const descEn = await translateDescription(descPt);
+      body.prompt_base_en = buildCinematicPrompt(name, age, descEn);
+    }
+  }
 
   const { data, error } = await supabase
     .from("characters")
