@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import JSZip from "jszip";
 import { Button } from "@/components/ui";
 
 interface Character {
@@ -305,6 +306,121 @@ export default function CharacterPage() {
   // Helper: get episode number (1-indexed)
   function getEpisodeNumber(epId: string): number {
     return episodes.findIndex((e) => e.id === epId) + 1;
+  }
+
+  // Download all assets as ZIP
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+
+  async function downloadAllAssets() {
+    if (!character) return;
+    setDownloadingAll(true);
+    setError(null);
+
+    try {
+      const allShots = Object.values(shotsByEp).flat();
+      const assetsToDownload: Array<{ url: string; path: string }> = [];
+
+      // Cover image
+      if (character.cover_image_url) {
+        const charSlug = (character.name || "personagem")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+        assetsToDownload.push({
+          url: character.cover_image_url,
+          path: `${charSlug}/cover.png`,
+        });
+      }
+
+      // Episode covers
+      for (const ep of episodes) {
+        if (ep.cover_image_url) {
+          const epIdx = episodes.findIndex((e) => e.id === ep.id);
+          assetsToDownload.push({
+            url: ep.cover_image_url,
+            path: `episodios/ep${String(epIdx + 1).padStart(2, "0")}-capa.png`,
+          });
+        }
+      }
+
+      // All shots: image + video
+      for (const shot of allShots) {
+        if (shot.image_url) {
+          assetsToDownload.push({
+            url: shot.image_url,
+            path: buildAssetPath(shot, "png"),
+          });
+        }
+        if (shot.video_url) {
+          assetsToDownload.push({
+            url: shot.video_url,
+            path: buildAssetPath(shot, "mp4"),
+          });
+        }
+      }
+
+      if (assetsToDownload.length === 0) {
+        setError("Nenhum asset para baixar");
+        setDownloadingAll(false);
+        return;
+      }
+
+      setDownloadProgress({ current: 0, total: assetsToDownload.length });
+
+      const zip = new JSZip();
+      let i = 0;
+      for (const asset of assetsToDownload) {
+        try {
+          const res = await fetch(asset.url);
+          if (res.ok) {
+            const blob = await res.blob();
+            zip.file(asset.path, blob);
+          }
+        } catch {
+          // Skip failed downloads
+        }
+        i++;
+        setDownloadProgress({ current: i, total: assetsToDownload.length });
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const charSlug = (character.name || "personagem")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-");
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${charSlug}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao baixar");
+    } finally {
+      setDownloadingAll(false);
+      setDownloadProgress({ current: 0, total: 0 });
+    }
+  }
+
+  // Helper: build asset path inside the ZIP
+  function buildAssetPath(shot: Shot, ext: string): string {
+    const epIdx = episodes.findIndex((e) => e.id === shot.episode_id);
+    const epShots = (shotsByEp[shot.episode_id] || []).sort(
+      (a, b) => a.order - b.order
+    );
+    const shotIdx = epShots.findIndex((s) => s.id === shot.id);
+    const epNum = String(epIdx + 1).padStart(2, "0");
+    const shotNum = String(shotIdx + 1).padStart(2, "0");
+    const folder = ext === "mp4" ? "videos" : "imagens";
+    return `episodios/ep${epNum}/${folder}/shot${shotNum}.${ext}`;
   }
 
   // Helper: build a clean filename for downloads
@@ -1017,6 +1133,20 @@ export default function CharacterPage() {
 
       {/* Main — Episodes + Shots */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+        {/* Top bar with download all */}
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={downloadAllAssets}
+            disabled={downloadingAll}
+          >
+            {downloadingAll
+              ? `Baixando ${downloadProgress.current}/${downloadProgress.total}...`
+              : "↓ Baixar tudo (.zip)"}
+          </Button>
+        </div>
+
         {error && (
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center justify-between">
             <span>{error}</span>
