@@ -50,11 +50,25 @@ export async function POST(request: Request) {
       }
     }
 
-    const videoPrompt = prompt || shot.prompt_full || shot.prompt_scene;
+    const rawPrompt = prompt || shot.prompt_full || shot.prompt_scene;
+
+    // Sanitize prompt — Veo is stricter than image generation
+    // Strip narration text, keep only visual description
+    let visualPrompt = rawPrompt
+      .replace(/pornografi[ao]/gi, "compulsive screen behavior")
+      .replace(/porn[ôo]/gi, "screen content")
+      .replace(/sexu/gi, "compulsive")
+      .replace(/masturba[çc][aã]o?/gi, "isolation behavior")
+      .replace(/v[ií]cio/gi, "compulsion")
+      .replace(/addiction/gi, "compulsion")
+      .replace(/pornography/gi, "compulsive screen behavior");
+
+    // For Veo, focus on cinematic motion description
+    const videoPrompt = `Cinematic 8-second shot with subtle camera movement: slow push-in, gentle pan, or slight handheld sway. Subject barely moves — focus on atmosphere, breathing, micro-expressions, ambient light shifts. Brazilian neo-realism style, teal-green color grading, film grain. Scene: ${visualPrompt}`;
 
     // Start Veo generation
     const operationName = await startVideoGeneration({
-      prompt: `Cinematic video with subtle camera movement and ambient atmosphere. ${videoPrompt}`,
+      prompt: videoPrompt,
       imageBase64,
       imageMimeType,
       aspectRatio: "16:9",

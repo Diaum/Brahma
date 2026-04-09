@@ -143,10 +143,13 @@ export async function pollVideoOperation(
       data.response?.generatedVideos?.[0]?.video?.uri;
 
     if (!videoUri) {
+      const raiReasons =
+        data.response?.generateVideoResponse?.raiMediaFilteredReasons;
       const errorMsg =
         data.error?.message ||
-        data.response?.raiMediaFilteredReason ||
-        `Nenhum video gerado. Resposta: ${JSON.stringify(data).slice(0, 300)}`;
+        (raiReasons?.length
+          ? `Bloqueado pelo filtro de seguranca: ${raiReasons[0]}`
+          : `Nenhum video gerado`);
       return { done: true, operationName, error: errorMsg };
     }
 
