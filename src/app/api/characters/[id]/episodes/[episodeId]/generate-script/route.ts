@@ -113,6 +113,12 @@ Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
             temperature: 0.8,
             maxOutputTokens: 8192,
           },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+          ],
         }),
       }
     );
@@ -127,8 +133,36 @@ Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
     }
 
     const data = await res.json();
+
+    // Check for safety blocks or empty response
+    if (!data?.candidates?.length) {
+      const blockReason = data?.promptFeedback?.blockReason || "unknown";
+      console.error("[generate-script] No candidates. Block reason:", blockReason, JSON.stringify(data).slice(0, 500));
+      return NextResponse.json(
+        { error: `Roteiro bloqueado pela IA (${blockReason}). Tente reformular o tema.` },
+        { status: 500 }
+      );
+    }
+
+    const finishReason = data.candidates[0]?.finishReason;
+    if (finishReason === "SAFETY") {
+      console.error("[generate-script] Blocked by safety filter");
+      return NextResponse.json(
+        { error: "Roteiro bloqueado pelo filtro de seguranca. Tente reformular o tema." },
+        { status: 500 }
+      );
+    }
+
     const text =
       data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
+    if (!text) {
+      console.error("[generate-script] Empty response. Finish reason:", finishReason);
+      return NextResponse.json(
+        { error: "Resposta vazia da IA. Tente novamente." },
+        { status: 500 }
+      );
+    }
 
     // Parse JSON from response (strip markdown code fences if present)
     let scenes;
@@ -141,7 +175,7 @@ Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
     } catch {
       console.error("[generate-script] Failed to parse:", text.slice(0, 500));
       return NextResponse.json(
-        { error: "Erro ao interpretar resposta da IA" },
+        { error: "Erro ao interpretar resposta da IA. Tente novamente." },
         { status: 500 }
       );
     }
