@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const EPISODE_ARCS: Record<number, string> = {
   1: "The beginning of the conflict — the character faces temptation and loses. Start with a normal, seemingly happy moment (HOOK), then gradually build tension as the urge takes over. End with the character giving in.",
-  2: "Consequences — guilt, emptiness, shame. The character deals with the aftermath of what happened in EP1. Emotional weight, isolation, trying to act normal but failing inside.",
+  2: "ORIGIN STORY — This episode shows the CHARACTER AS A TEENAGER/YOUNG VERSION OF HIMSELF. We go back in time to show how the addiction started. The first exposure, the curiosity, the confusion, the secret. Show the innocence being lost. Flashback scenes of a younger version of the same character — same features but younger face, shorter hair, teenage body, school uniform or casual teenage clothes. Mix between the past (teenager) and brief flashes of the present (adult) to show the connection.",
   3: "Attempt to stop — and failure. The character tries to resist, makes promises to himself, uses strategies to avoid falling again. But the tension builds until he breaks again.",
   4: "Rock bottom — the lowest point. Everything collapses. The addiction/conflict affects relationships, self-image, daily life. The character is at his worst, hopeless.",
   5: "The turning point — recovery begins. A moment of clarity, seeking help, a small victory. Not a fairy tale ending, but a real, raw first step toward change.",
@@ -56,6 +56,11 @@ export async function POST(
     .split("\n")[0]
     ?.replace(/\.\s*$/, "") || character.prompt_base_en.slice(0, 300);
 
+  // For EP2: create a younger version of the character
+  const youngCharAppearance = epNum === 2
+    ? `Teenage version of the same character (13-16 years old), same facial features but younger — shorter hair, rounder younger face, no facial hair, thinner frame, slightly shorter, wearing casual teenage clothes or school uniform. Same skin tone and eye color as the adult version.`
+    : null;
+
   const prompt = `You are a screenplay writer for a cinematic Instagram Reels mini-series about MEN'S MENTAL HEALTH AND PORNOGRAPHY ADDICTION. The tone is raw, vulnerable, honest — Brazilian neo-realism style. This is NOT explicit content. It's about the EMOTIONAL and PSYCHOLOGICAL struggle: the shame, the compulsion, the isolation, the failed promises to yourself, the impact on relationships and self-worth. Think of it like a visual diary of someone fighting an invisible battle.
 
 The series shows the INTERNAL experience — never explicit imagery. Focus on: the urge building, the ritual of isolation, the guilt after, the mask he puts on for others, the loneliness, the cycle. Use metaphors and emotional cinematography.
@@ -64,7 +69,9 @@ CHARACTER:
 - Name: ${character.name}
 - Age: ${character.age}
 - Description: ${character.description_pt}
-- Visual prompt base: ${charAppearance}
+- Visual prompt base (adult): ${charAppearance}${youngCharAppearance ? `
+- Visual prompt base (TEENAGE VERSION for EP2): ${youngCharAppearance}
+- IMPORTANT: Most scenes in this episode use the TEENAGE version. Use the adult version only in brief present-day flashback moments (2-3 scenes max). Always specify in the image_prompt whether it's the teenage or adult version.` : ""}
 
 EPISODE ${epNum} OF 5 — NARRATIVE ARC:
 ${arc}

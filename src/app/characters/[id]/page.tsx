@@ -242,6 +242,36 @@ export default function CharacterPage() {
     await loadData();
   }
 
+  // Download script (narration + description only)
+  function downloadScript(ep: Episode) {
+    const epShots = shotsByEp[ep.id] || [];
+    if (epShots.length === 0) return;
+
+    const epIndex = episodes.findIndex((e) => e.id === ep.id);
+    const lines = epShots.map((shot, i) => {
+      const parts = shot.prompt_scene.split("\n\n");
+      const narration = parts[0] || shot.prompt_scene;
+      const description = parts[1] || "";
+
+      return `[CENA ${i + 1}]\n\n🎧 Narração:\n${narration}${description ? `\n\n🎥 Descrição da cena:\n${description}` : ""}`;
+    });
+
+    const content = `${character?.name || "Personagem"} — EP ${String(epIndex + 1).padStart(2, "0")}: ${ep.title}\n\n${"=".repeat(50)}\n\n${lines.join("\n\n---\n\n")}`;
+
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${character?.name || "roteiro"}-EP${String(epIndex + 1).padStart(2, "0")}.txt`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
   // Collapsed episodes
   const [collapsedEps, setCollapsedEps] = useState<Set<string>>(new Set());
 
@@ -822,6 +852,15 @@ export default function CharacterPage() {
                       >
                         Gerar Roteiro
                       </Button>
+                      {(shotsByEp[ep.id] || []).length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => downloadScript(ep)}
+                        >
+                          Baixar Roteiro
+                        </Button>
+                      )}
                       {(shotsByEp[ep.id] || []).some(
                         (s) => s.status === "pending" && !s.image_url
                       ) && (
