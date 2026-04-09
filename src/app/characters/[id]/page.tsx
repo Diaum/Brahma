@@ -308,6 +308,13 @@ export default function CharacterPage() {
     return episodes.findIndex((e) => e.id === epId) + 1;
   }
 
+  // Helper: add cache-buster to URL
+  function withCacheBuster(url: string | null): string {
+    if (!url) return "";
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}t=${Date.now()}`;
+  }
+
   // Download all assets as ZIP
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
@@ -808,18 +815,26 @@ export default function CharacterPage() {
           setAnimatingOp(null);
 
           if (data.video_url) {
+            // Append cache buster to bypass browser/CDN cache
+            const freshUrl = `${data.video_url}?t=${Date.now()}`;
             // Update shot in local state
             setShotsByEp((prev) => {
               const updated = { ...prev };
               for (const epId in updated) {
                 updated[epId] = updated[epId].map((s) =>
                   s.id === shotId
-                    ? { ...s, video_url: data.video_url, video_operation: null, status: "animated" }
+                    ? { ...s, video_url: freshUrl, video_operation: null, status: "animated" }
                     : s
                 );
               }
               return updated;
             });
+            // Also update previewShot if it's the same one
+            setPreviewShot((prev) =>
+              prev && prev.id === shotId
+                ? { ...prev, video_url: freshUrl, video_operation: null, status: "animated" }
+                : prev
+            );
           } else if (data.error) {
             setError(`Animacao falhou: ${data.error}`);
             // Clear video_operation in local state to prevent auto-retry
@@ -1873,6 +1888,7 @@ export default function CharacterPage() {
               <div className="shrink-0">
                 {previewShot.video_url ? (
                   <video
+                    key={previewShot.video_url}
                     src={previewShot.video_url}
                     controls
                     autoPlay
