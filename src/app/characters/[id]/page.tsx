@@ -630,6 +630,7 @@ export default function CharacterPage() {
   const [animDuration, setAnimDuration] = useState<number>(4);
   const [animPromptDraft, setAnimPromptDraft] = useState<string>("");
   const [animProvider, setAnimProvider] = useState<"veo" | "pixverse">("veo");
+  const [animUseRawPrompt, setAnimUseRawPrompt] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   function openAnimatePrompt(shot: Shot) {
@@ -653,6 +654,7 @@ export default function CharacterPage() {
           prompt: customPrompt || shot.prompt_full || shot.prompt_scene,
           duration: animDuration,
           provider: animProvider,
+          useRawPrompt: animUseRawPrompt,
         }),
       });
 
@@ -1859,8 +1861,17 @@ export default function CharacterPage() {
                             className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-accent transition resize-none"
                           />
                           <p className="text-[10px] text-muted mt-1">
-                            Sera enviado ao Veo. Edite se a cena estiver sendo bloqueada.
+                            Sera enviado ao {animProvider === "veo" ? "Veo" : "PixVerse"}. Edite se a cena estiver sendo bloqueada.
                           </p>
+                          <label className="flex items-center gap-2 mt-2 cursor-pointer text-[11px] text-muted">
+                            <input
+                              type="checkbox"
+                              checked={animUseRawPrompt}
+                              onChange={(e) => setAnimUseRawPrompt(e.target.checked)}
+                              className="cursor-pointer"
+                            />
+                            Usar prompt completo (sem template)
+                          </label>
                         </div>
                         <div>
                           <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">

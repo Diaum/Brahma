@@ -17,7 +17,7 @@ import { getShotContext } from "@/lib/storage-paths";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shotId, prompt, duration, provider = "veo" } = body;
+    const { shotId, prompt, duration, provider = "veo", useRawPrompt = false } = body;
 
     if (!shotId) {
       return NextResponse.json(
@@ -69,7 +69,15 @@ export async function POST(request: Request) {
       .replace(/addiction/gi, "compulsion")
       .replace(/pornography/gi, "compulsive screen behavior");
 
-    const animationPrompt = `Subtly animate the provided image. No dialogue, no speech, no text, no audio. Only gentle, minimal motion: slow camera push-in, subtle pan, or slight handheld sway. The subject barely moves — only natural micro-movements like breathing, blinking, hair drifting, ambient light shifts. Keep everything else in the image identical. Context: ${visualPrompt}`;
+    // If useRawPrompt is true, send exactly what user wrote. Otherwise wrap it.
+    let animationPrompt: string;
+    if (useRawPrompt) {
+      animationPrompt = visualPrompt;
+    } else {
+      // Pull the character appearance from the shot's prompt_full (first sentence)
+      const charContext = (shot.prompt_full || "").split(/\.\s/)[0] || "";
+      animationPrompt = `Animate this image with natural cinematic motion. The character moves and acts according to the scene — natural body movement, head turns, gestures, micro-expressions, environmental motion (people, objects, light shifts). Use subtle camera work (slow push-in, gentle pan, or handheld sway) to enhance the cinematic feel. No dialogue, no speech, no text, no audio overlays. Keep visual style, lighting and character identical to the source image. Character: ${charContext}. Scene action: ${visualPrompt}`;
+    }
 
     let opIdentifier: string;
 
