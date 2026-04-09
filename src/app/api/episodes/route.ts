@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       character_id,
       title,
       script: script || null,
-      format: format || "9:16",
+      format: format || "16:9",
       order: order ?? 0,
     })
     .select()

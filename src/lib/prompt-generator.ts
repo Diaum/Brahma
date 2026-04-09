@@ -230,7 +230,7 @@ export async function translateDescription(
 
 const CINEMATIC_STYLE = `Shot on Arri Alexa with vintage anamorphic lens, shallow depth of field, heavy teal-green color grading, crushed blacks, desaturated skin tones, visible film grain, subtle lens vignette. Low-key lighting with dramatic contrast.
 
-Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Vertical 9:16 portrait aspect ratio for Instagram Reels, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
+Style: Brazilian neo-realism cinema, City of God and Elite Squad cinematography. Widescreen 16:9 cinematic aspect ratio, photorealistic, raw gritty atmosphere, documentary handheld camera feel. Hyperrealistic, 8K detail on skin texture and pores.`;
 
 export function buildCinematicPrompt(
   name: string,

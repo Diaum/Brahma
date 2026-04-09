@@ -41,7 +41,7 @@ export async function POST(
       character_id: id,
       title,
       script: script || null,
-      format: format || "9:16",
+      format: format || "16:9",
     })
     .select()
     .single();

@@ -38,7 +38,7 @@ export async function generateImage(
     generationConfig: {
       responseModalities: ["TEXT", "IMAGE"],
       imageConfig: {
-        aspectRatio: options.aspectRatio || "9:16",
+        aspectRatio: options.aspectRatio || "16:9",
       },
     },
     safetySettings: [

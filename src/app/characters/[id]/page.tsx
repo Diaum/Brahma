@@ -338,7 +338,7 @@ export default function CharacterPage() {
         body: JSON.stringify({
           shotId: shot.id,
           prompt,
-          aspectRatio: "9:16",
+          aspectRatio: "16:9",
         }),
       });
 
@@ -844,20 +844,12 @@ export default function CharacterPage() {
                               </>
                             )}
                             {shot.status === "approved" && shot.image_url && (
-                              <>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
-                                  className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition cursor-pointer"
-                                >
-                                  Download 9:16
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "landscape"); }}
-                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
-                                >
-                                  Download 16:9
-                                </button>
-                              </>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
+                                className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition cursor-pointer"
+                              >
+                                Download
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1061,20 +1053,12 @@ export default function CharacterPage() {
                   )}
                   {previewShot.status === "approved" &&
                     previewShot.image_url && (
-                      <>
-                        <button
-                          onClick={() => handleDownload(previewShot, "original")}
-                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
-                        >
-                          Download 9:16
-                        </button>
-                        <button
-                          onClick={() => handleDownload(previewShot, "landscape")}
-                          className="w-full bg-card border border-border text-foreground font-medium px-4 py-2.5 rounded-lg hover:bg-card-hover transition cursor-pointer text-sm"
-                        >
-                          Download 16:9
-                        </button>
-                      </>
+                      <button
+                        onClick={() => handleDownload(previewShot, "original")}
+                        className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
+                      >
+                        Download
+                      </button>
                     )}
                   <button
                     onClick={() =>
