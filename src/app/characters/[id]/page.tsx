@@ -96,6 +96,152 @@ export default function CharacterPage() {
   const [regenShot, setRegenShot] = useState<Shot | null>(null);
   const [regenExtra, setRegenExtra] = useState("");
 
+  // Script generator
+  interface GeneratedScene {
+    narration: string;
+    description: string;
+    image_prompt: string;
+  }
+  const [scriptGenEp, setScriptGenEp] = useState<string | null>(null);
+  const [scriptTheme, setScriptTheme] = useState("");
+  const [generatingScript, setGeneratingScript] = useState(false);
+  const [generatedScenes, setGeneratedScenes] = useState<GeneratedScene[]>([]);
+  const [reviewingScript, setReviewingScript] = useState(false);
+  const [creatingShotsFromScript, setCreatingShotsFromScript] = useState(false);
+  const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+
+  function openScriptGenerator(epId: string) {
+    setScriptGenEp(epId);
+    setScriptTheme("");
+    setGeneratedScenes([]);
+    setReviewingScript(false);
+  }
+
+  async function handleGenerateScript() {
+    if (!scriptGenEp || !scriptTheme.trim()) return;
+    setGeneratingScript(true);
+    setError(null);
+
+    const epIndex = episodes.findIndex((e) => e.id === scriptGenEp);
+    const epNumber = epIndex + 1;
+
+    try {
+      const res = await fetch(
+        `/api/characters/${id}/episodes/${scriptGenEp}/generate-script`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            theme: scriptTheme.trim(),
+            episode_number: epNumber,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao gerar roteiro");
+      }
+
+      const data = await res.json();
+      setGeneratedScenes(data.scenes);
+      setReviewingScript(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setGeneratingScript(false);
+    }
+  }
+
+  function updateScene(index: number, field: keyof GeneratedScene, value: string) {
+    setGeneratedScenes((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
+    );
+  }
+
+  function removeScene(index: number) {
+    setGeneratedScenes((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleApproveScript() {
+    if (!scriptGenEp || generatedScenes.length === 0) return;
+    setCreatingShotsFromScript(true);
+    setError(null);
+
+    try {
+      for (const scene of generatedScenes) {
+        await fetch(
+          `/api/characters/${id}/episodes/${scriptGenEp}/shots`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt_scene: `${scene.narration}\n\n${scene.description}`,
+              prompt_full: scene.image_prompt,
+            }),
+          }
+        );
+      }
+
+      // Also save the full script text to the episode
+      const fullScript = generatedScenes
+        .map(
+          (s, i) =>
+            `[CENA ${i + 1}]\n\n🎧 Narração:\n${s.narration}\n\n🎥 Descrição:\n${s.description}\n\n🧾 Prompt:\n${s.image_prompt}`
+        )
+        .join("\n\n---\n\n");
+
+      await fetch(`/api/episodes/${scriptGenEp}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: fullScript }),
+      });
+
+      setScriptGenEp(null);
+      setGeneratedScenes([]);
+      setReviewingScript(false);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setCreatingShotsFromScript(false);
+    }
+  }
+
+  async function handleBatchGenerate(epId: string) {
+    const epShots = shotsByEp[epId] || [];
+    const pending = epShots.filter(
+      (s) => s.status === "pending" && !s.image_url
+    );
+    if (pending.length === 0) return;
+
+    setBatchGenerating(true);
+    setBatchProgress({ current: 0, total: pending.length });
+    setError(null);
+
+    for (let i = 0; i < pending.length; i++) {
+      setBatchProgress({ current: i + 1, total: pending.length });
+      try {
+        await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shotId: pending[i].id,
+            prompt: pending[i].prompt_full || pending[i].prompt_scene,
+            aspectRatio: "16:9",
+          }),
+        });
+      } catch {
+        // Continue with next shot
+      }
+    }
+
+    setBatchGenerating(false);
+    setBatchProgress({ current: 0, total: 0 });
+    await loadData();
+  }
+
   // Collapsed episodes
   const [collapsedEps, setCollapsedEps] = useState<Set<string>>(new Set());
 
@@ -651,17 +797,41 @@ export default function CharacterPage() {
                 </button>
                 <div className="flex items-center gap-2">
                   {!collapsedEps.has(ep.id) && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        activeEpForm === ep.id
-                          ? setActiveEpForm(null)
-                          : openShotForm(ep.id)
-                      }
-                    >
-                      {activeEpForm === ep.id ? "Cancelar" : "+ Shot"}
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => openScriptGenerator(ep.id)}
+                      >
+                        Gerar Roteiro
+                      </Button>
+                      {(shotsByEp[ep.id] || []).some(
+                        (s) => s.status === "pending" && !s.image_url
+                      ) && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleBatchGenerate(ep.id)}
+                          disabled={batchGenerating}
+                        >
+                          {batchGenerating &&
+                          batchProgress.total > 0
+                            ? `Gerando ${batchProgress.current}/${batchProgress.total}`
+                            : "Gerar Todas"}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          activeEpForm === ep.id
+                            ? setActiveEpForm(null)
+                            : openShotForm(ep.id)
+                        }
+                      >
+                        {activeEpForm === ep.id ? "Cancelar" : "+ Shot"}
+                      </Button>
+                    </>
                   )}
                   <button
                     onClick={() => handleDeleteEpisode(ep.id, ep.title)}
@@ -863,6 +1033,168 @@ export default function CharacterPage() {
           );
         })}
       </div>
+
+      {/* Script Generator Modal */}
+      {scriptGenEp && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => !generatingScript && !creatingShotsFromScript && setScriptGenEp(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {reviewingScript ? "Revisar Roteiro" : "Gerar Roteiro"}
+                </h2>
+                <p className="text-sm text-muted">
+                  EP {String((episodes.findIndex((e) => e.id === scriptGenEp) + 1)).padStart(2, "0")} — {episodes.find((e) => e.id === scriptGenEp)?.title}
+                </p>
+              </div>
+              <button
+                onClick={() => setScriptGenEp(null)}
+                disabled={generatingScript || creatingShotsFromScript}
+                className="text-muted hover:text-foreground text-xl cursor-pointer p-1 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {!reviewingScript ? (
+                /* Theme input */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Tema / Ideia do episodio
+                    </label>
+                    <textarea
+                      value={scriptTheme}
+                      onChange={(e) => setScriptTheme(e.target.value)}
+                      placeholder="Ex: Vício em pornografia. Ele está no almoço de família, parece tudo normal, mas a vontade aparece e ele não consegue resistir. Vai pro banheiro e recai."
+                      rows={5}
+                      className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-accent transition"
+                    />
+                    <p className="text-muted text-xs mt-2">
+                      Descreva a ideia geral. A IA vai gerar ~15 cenas seguindo o arco narrativo do episodio {episodes.findIndex((e) => e.id === scriptGenEp) + 1} automaticamente.
+                    </p>
+                  </div>
+
+                  {generatingScript && (
+                    <div className="flex items-center gap-3 text-accent">
+                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm">Gerando roteiro com IA... Isso pode levar ~30s</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Scene review */
+                <div className="space-y-4">
+                  <p className="text-sm text-muted mb-2">
+                    {generatedScenes.length} cenas geradas. Edite, reordene ou remova antes de aprovar.
+                  </p>
+
+                  {generatedScenes.map((scene, i) => (
+                    <div
+                      key={i}
+                      className="bg-background border border-border rounded-xl p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-accent font-mono text-xs font-bold">
+                          CENA {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <button
+                          onClick={() => removeScene(i)}
+                          className="text-muted hover:text-red-400 text-xs cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-muted uppercase tracking-wide block mb-1">
+                          Narracao
+                        </label>
+                        <textarea
+                          value={scene.narration}
+                          onChange={(e) => updateScene(i, "narration", e.target.value)}
+                          rows={2}
+                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent transition resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-muted uppercase tracking-wide block mb-1">
+                          Descricao visual
+                        </label>
+                        <textarea
+                          value={scene.description}
+                          onChange={(e) => updateScene(i, "description", e.target.value)}
+                          rows={2}
+                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent transition resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-muted uppercase tracking-wide block mb-1">
+                          Prompt de imagem (EN)
+                        </label>
+                        <textarea
+                          value={scene.image_prompt}
+                          onChange={(e) => updateScene(i, "image_prompt", e.target.value)}
+                          rows={3}
+                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-accent transition resize-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-border shrink-0 flex gap-3">
+              {!reviewingScript ? (
+                <Button
+                  onClick={handleGenerateScript}
+                  disabled={!scriptTheme.trim() || generatingScript}
+                >
+                  {generatingScript ? "Gerando..." : "Gerar Roteiro"}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleApproveScript}
+                    disabled={creatingShotsFromScript || generatedScenes.length === 0}
+                  >
+                    {creatingShotsFromScript
+                      ? "Criando shots..."
+                      : `Aprovar ${generatedScenes.length} cenas`}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setReviewingScript(false)}
+                    disabled={creatingShotsFromScript}
+                  >
+                    Voltar
+                  </Button>
+                </>
+              )}
+              <button
+                onClick={() => setScriptGenEp(null)}
+                disabled={generatingScript || creatingShotsFromScript}
+                className="text-muted hover:text-foreground text-sm px-3 cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
