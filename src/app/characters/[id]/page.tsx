@@ -463,7 +463,9 @@ export default function CharacterPage() {
 
     try {
       let prompt = shot.prompt_full || shot.prompt_scene;
-      if (extraPrompt?.trim()) {
+
+      // Always use the extraPrompt when provided (regen flow)
+      if (extraPrompt !== undefined && extraPrompt.trim()) {
         const translateRes = await fetch(
           `/api/characters/${id}/compose-prompt`,
           {
@@ -475,8 +477,23 @@ export default function CharacterPage() {
         if (translateRes.ok) {
           const data = await translateRes.json();
           prompt = data.prompt_full;
+
+          // Also update the shot's prompt in the database
+          await fetch(
+            `/api/characters/${id}/episodes/${shot.episode_id}/shots/${shot.id}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt_scene: extraPrompt.trim(),
+                prompt_full: data.prompt_full,
+              }),
+            }
+          );
         }
       }
+
+      console.log("[regen] Using prompt:", prompt.slice(0, 200));
 
       const res = await fetch("/api/generate-image", {
         method: "POST",
