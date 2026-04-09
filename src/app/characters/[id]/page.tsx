@@ -19,6 +19,7 @@ interface Episode {
   script: string | null;
   format: string;
   order: number;
+  cover_image_url: string | null;
 }
 
 interface Shot {
@@ -56,9 +57,30 @@ export default function CharacterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Selected episode (when null, shows episode list; when set, shows shots)
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+
   // New episode
   const [newEpTitle, setNewEpTitle] = useState("");
   const [creatingEp, setCreatingEp] = useState(false);
+
+  // Set as cover
+  async function handleSetCover(shot: Shot) {
+    const res = await fetch(`/api/episodes/${shot.episode_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cover_image_url: shot.image_url }),
+    });
+    if (res.ok) {
+      setEpisodes((prev) =>
+        prev.map((e) =>
+          e.id === shot.episode_id
+            ? { ...e, cover_image_url: shot.image_url }
+            : e
+        )
+      );
+    }
+  }
 
   // Script editing per episode
   const [scriptDrafts, setScriptDrafts] = useState<Record<string, string>>({});
@@ -964,7 +986,79 @@ export default function CharacterPage() {
           </div>
         )}
 
-        {episodes.map((ep, epIndex) => {
+        {/* Episode list view (when no ep selected) */}
+        {!selectedEpisodeId && episodes.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {episodes.map((ep, epIndex) => {
+              const epShotsCount = (shotsByEp[ep.id] || []).length;
+              const approvedCount = (shotsByEp[ep.id] || []).filter(
+                (s) => s.status === "approved" || s.status === "animated"
+              ).length;
+
+              return (
+                <button
+                  key={ep.id}
+                  onClick={() => setSelectedEpisodeId(ep.id)}
+                  className="group relative bg-card border border-border rounded-2xl overflow-hidden hover:border-accent/50 transition cursor-pointer text-left"
+                >
+                  {/* Cover image */}
+                  <div className="relative aspect-[9/16] bg-background">
+                    {ep.cover_image_url ? (
+                      <img
+                        src={ep.cover_image_url}
+                        alt={ep.title}
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-muted">
+                        <span className="text-5xl mb-2">🎬</span>
+                        <span className="text-xs">Sem capa</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className="text-accent font-mono text-xs font-bold bg-black/50 px-2 py-1 rounded">
+                        EP {String(epIndex + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <h3 className="font-bold text-lg text-white drop-shadow-lg mb-1">
+                        {ep.title}
+                      </h3>
+                      <div className="flex items-center gap-3 text-xs text-white/80">
+                        <span>
+                          {epShotsCount} shot{epShotsCount !== 1 ? "s" : ""}
+                        </span>
+                        {approvedCount > 0 && (
+                          <span className="text-green-400">
+                            • {approvedCount} aprovado{approvedCount !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Selected episode view (filtered to one ep) */}
+        {selectedEpisodeId && (
+          <div className="mb-4">
+            <button
+              onClick={() => setSelectedEpisodeId(null)}
+              className="text-muted hover:text-accent transition text-sm cursor-pointer flex items-center gap-2"
+            >
+              ← Voltar aos episodios
+            </button>
+          </div>
+        )}
+
+        {selectedEpisodeId && episodes
+          .map((ep, epIndex) => ({ ep, epIndex }))
+          .filter(({ ep }) => ep.id === selectedEpisodeId)
+          .map(({ ep, epIndex }) => {
           const epShots = (shotsByEp[ep.id] || []).sort((a, b) => a.order - b.order);
 
           return (
@@ -1181,12 +1275,31 @@ export default function CharacterPage() {
                                 {statusLabels[shot.status]}
                               </span>
                             </div>
-                            <button
-                              onClick={() => setDeleteTarget({ type: "shot", shot })}
-                              className="text-muted hover:text-red-400 text-xs cursor-pointer opacity-0 group-hover:opacity-100 transition"
-                            >
-                              ✕
-                            </button>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+                              {shot.image_url && (shot.status === "approved" || shot.status === "animated") && (
+                                <button
+                                  onClick={() => handleSetCover(shot)}
+                                  className={`text-xs cursor-pointer transition ${
+                                    ep.cover_image_url === shot.image_url
+                                      ? "text-accent"
+                                      : "text-muted hover:text-accent"
+                                  }`}
+                                  title={
+                                    ep.cover_image_url === shot.image_url
+                                      ? "Capa atual"
+                                      : "Usar como capa"
+                                  }
+                                >
+                                  {ep.cover_image_url === shot.image_url ? "★" : "☆"}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setDeleteTarget({ type: "shot", shot })}
+                                className="text-muted hover:text-red-400 text-xs cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
 
                           <div className="flex gap-1.5">
