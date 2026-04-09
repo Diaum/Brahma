@@ -53,7 +53,6 @@ export async function POST(request: Request) {
     const rawPrompt = prompt || shot.prompt_full || shot.prompt_scene;
 
     // Sanitize prompt — Veo is stricter than image generation
-    // Strip narration text, keep only visual description
     let visualPrompt = rawPrompt
       .replace(/pornografi[ao]/gi, "compulsive screen behavior")
       .replace(/porn[ôo]/gi, "screen content")
@@ -63,8 +62,8 @@ export async function POST(request: Request) {
       .replace(/addiction/gi, "compulsion")
       .replace(/pornography/gi, "compulsive screen behavior");
 
-    // For Veo, focus on cinematic motion description
-    const videoPrompt = `Cinematic 8-second shot with subtle camera movement: slow push-in, gentle pan, or slight handheld sway. Subject barely moves — focus on atmosphere, breathing, micro-expressions, ambient light shifts. Brazilian neo-realism style, teal-green color grading, film grain. Scene: ${visualPrompt}`;
+    // Minimal animation prompt — just bring the image to life subtly
+    const videoPrompt = `Subtly animate the provided image. No dialogue, no speech, no text, no audio. Only gentle, minimal motion: slow camera push-in, subtle pan, or slight handheld sway. The subject barely moves — only natural micro-movements like breathing, blinking, hair drifting, ambient light shifts. Keep everything else in the image identical. Context for reference: ${visualPrompt}`;
 
     // Start Veo generation
     const operationName = await startVideoGeneration({
