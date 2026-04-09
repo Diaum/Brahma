@@ -26,7 +26,7 @@ export async function POST(
 ) {
   const { episodeId } = await params;
   const body = await request.json();
-  const { prompt_scene, prompt_full, reference_image_url } = body;
+  const { prompt_scene, prompt_full, reference_image_url, order } = body;
 
   if (!prompt_scene || !prompt_full) {
     return NextResponse.json(
@@ -42,6 +42,7 @@ export async function POST(
       prompt_scene,
       prompt_full,
       reference_image_url: reference_image_url || null,
+      order: order ?? 0,
     })
     .select()
     .single();

@@ -170,7 +170,13 @@ export default function CharacterPage() {
     setError(null);
 
     try {
-      for (const scene of generatedScenes) {
+      const existingShots = shotsByEp[scriptGenEp] || [];
+      const startOrder = existingShots.length > 0
+        ? Math.max(...existingShots.map((s) => s.order)) + 1
+        : 0;
+
+      for (let i = 0; i < generatedScenes.length; i++) {
+        const scene = generatedScenes[i];
         await fetch(
           `/api/characters/${id}/episodes/${scriptGenEp}/shots`,
           {
@@ -179,6 +185,7 @@ export default function CharacterPage() {
             body: JSON.stringify({
               prompt_scene: `${scene.narration}\n\n${scene.description}`,
               prompt_full: scene.image_prompt,
+              order: startOrder + i,
             }),
           }
         );
@@ -248,33 +255,21 @@ export default function CharacterPage() {
   }
 
   // Download script (narration + description only)
-  function downloadScript(ep: Episode) {
-    const epShots = shotsByEp[ep.id] || [];
+  const [copied, setCopied] = useState(false);
+
+  function copyNarration(ep: Episode) {
+    const epShots = (shotsByEp[ep.id] || []).sort((a, b) => a.order - b.order);
     if (epShots.length === 0) return;
 
-    const epIndex = episodes.findIndex((e) => e.id === ep.id);
-    const lines = epShots.map((shot, i) => {
-      const parts = shot.prompt_scene.split("\n\n");
-      const narration = parts[0] || shot.prompt_scene;
-      const description = parts[1] || "";
-
-      return `[CENA ${i + 1}]\n\n🎧 Narração:\n${narration}${description ? `\n\n🎥 Descrição da cena:\n${description}` : ""}`;
+    const lines = epShots.map((shot) => {
+      const narration = shot.prompt_scene.split("\n\n")[0] || shot.prompt_scene;
+      return narration;
     });
 
-    const content = `${character?.name || "Personagem"} — EP ${String(epIndex + 1).padStart(2, "0")}: ${ep.title}\n\n${"=".repeat(50)}\n\n${lines.join("\n\n---\n\n")}`;
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${character?.name || "roteiro"}-EP${String(epIndex + 1).padStart(2, "0")}.txt`;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
+    const text = lines.join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   // Collapsed episodes
@@ -457,6 +452,11 @@ export default function CharacterPage() {
     setError(null);
 
     try {
+      const currentShots = shotsByEp[activeEpForm] || [];
+      const nextOrder = currentShots.length > 0
+        ? Math.max(...currentShots.map((s) => s.order)) + 1
+        : 0;
+
       const res = await fetch(
         `/api/characters/${id}/episodes/${activeEpForm}/shots`,
         {
@@ -465,6 +465,7 @@ export default function CharacterPage() {
           body: JSON.stringify({
             prompt_scene: sceneInput.trim(),
             prompt_full: composedPrompt,
+            order: nextOrder,
           }),
         }
       );
@@ -823,7 +824,7 @@ export default function CharacterPage() {
         )}
 
         {episodes.map((ep, epIndex) => {
-          const epShots = shotsByEp[ep.id] || [];
+          const epShots = (shotsByEp[ep.id] || []).sort((a, b) => a.order - b.order);
 
           return (
             <div
@@ -863,9 +864,9 @@ export default function CharacterPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => downloadScript(ep)}
+                          onClick={() => copyNarration(ep)}
                         >
-                          Baixar Roteiro
+                          {copied ? "Copiado!" : "Copiar Falas"}
                         </Button>
                       )}
                       {(shotsByEp[ep.id] || []).some(
