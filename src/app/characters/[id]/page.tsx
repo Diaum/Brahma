@@ -988,7 +988,7 @@ export default function CharacterPage() {
 
         {/* Episode list view (when no ep selected) */}
         {!selectedEpisodeId && episodes.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {episodes.map((ep, epIndex) => {
               const epShotsCount = (shotsByEp[ep.id] || []).length;
               const approvedCount = (shotsByEp[ep.id] || []).filter(
@@ -1016,22 +1016,20 @@ export default function CharacterPage() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    <div className="absolute top-3 left-3">
-                      <span className="text-accent font-mono text-xs font-bold bg-black/50 px-2 py-1 rounded">
+                    <div className="absolute top-2 left-2">
+                      <span className="text-accent font-mono text-[10px] font-bold bg-black/60 px-1.5 py-0.5 rounded">
                         EP {String(epIndex + 1).padStart(2, "0")}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="font-bold text-lg text-white drop-shadow-lg mb-1">
+                    <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                      <h3 className="font-bold text-sm text-white drop-shadow-lg mb-0.5 line-clamp-1">
                         {ep.title}
                       </h3>
-                      <div className="flex items-center gap-3 text-xs text-white/80">
-                        <span>
-                          {epShotsCount} shot{epShotsCount !== 1 ? "s" : ""}
-                        </span>
+                      <div className="flex items-center gap-1.5 text-[10px] text-white/80">
+                        <span>{epShotsCount} shots</span>
                         {approvedCount > 0 && (
                           <span className="text-green-400">
-                            • {approvedCount} aprovado{approvedCount !== 1 ? "s" : ""}
+                            • {approvedCount}✓
                           </span>
                         )}
                       </div>

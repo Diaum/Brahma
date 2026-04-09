@@ -11,7 +11,8 @@ export async function GET(
     .from("episodes")
     .select("*")
     .eq("character_id", id)
-    .order("order", { ascending: true });
+    .order("order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,6 +36,18 @@ export async function POST(
     );
   }
 
+  // Determine next order
+  const { data: existing } = await supabase
+    .from("episodes")
+    .select("order")
+    .eq("character_id", id)
+    .order("order", { ascending: false })
+    .limit(1);
+
+  const nextOrder = existing && existing.length > 0
+    ? (existing[0].order ?? 0) + 1
+    : 0;
+
   const { data, error } = await supabase
     .from("episodes")
     .insert({
@@ -42,6 +55,7 @@ export async function POST(
       title,
       script: script || null,
       format: format || "16:9",
+      order: nextOrder,
     })
     .select()
     .single();
