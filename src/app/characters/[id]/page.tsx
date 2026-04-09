@@ -1060,14 +1060,10 @@ export default function CharacterPage() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    <div className="absolute top-2 left-2">
-                      <span className="text-accent font-mono text-[10px] font-bold bg-black/60 px-1.5 py-0.5 rounded">
-                        EP {String(epIndex + 1).padStart(2, "0")}
-                      </span>
-                    </div>
                     <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                      <h3 className="font-bold text-sm text-white drop-shadow-lg mb-0.5 line-clamp-1">
-                        {ep.title}
+                      <h3 className="font-bold text-sm text-white drop-shadow-lg mb-0.5 line-clamp-2">
+                        <span className="text-accent">EP {epIndex + 1}</span>{" "}
+                        &quot;{ep.title}&quot;
                       </h3>
                       <div className="flex items-center gap-1.5 text-[10px] text-white/80">
                         <span>{epShotsCount} shots</span>
@@ -1120,7 +1116,7 @@ export default function CharacterPage() {
                     ▶
                   </span>
                   <span className="text-accent font-mono text-sm font-bold">
-                    EP {String(epIndex + 1).padStart(2, "0")}
+                    EP {epIndex + 1}
                   </span>
                   {editingEpId === ep.id ? (
                     <input
@@ -1145,7 +1141,7 @@ export default function CharacterPage() {
                       }}
                       title="Clique para editar"
                     >
-                      {ep.title}
+                      &quot;{ep.title}&quot;
                     </h3>
                   )}
                   <span className="text-xs text-muted">
