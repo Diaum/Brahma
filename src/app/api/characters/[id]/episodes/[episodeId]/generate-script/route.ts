@@ -56,7 +56,9 @@ export async function POST(
     .split("\n")[0]
     ?.replace(/\.\s*$/, "") || character.prompt_base_en.slice(0, 300);
 
-  const prompt = `You are a screenplay writer for a cinematic Instagram Reels mini-series. You write in a raw, emotional, Brazilian neo-realism style.
+  const prompt = `You are a screenplay writer for a cinematic Instagram Reels mini-series about MEN'S MENTAL HEALTH AND PORNOGRAPHY ADDICTION. The tone is raw, vulnerable, honest — Brazilian neo-realism style. This is NOT explicit content. It's about the EMOTIONAL and PSYCHOLOGICAL struggle: the shame, the compulsion, the isolation, the failed promises to yourself, the impact on relationships and self-worth. Think of it like a visual diary of someone fighting an invisible battle.
+
+The series shows the INTERNAL experience — never explicit imagery. Focus on: the urge building, the ritual of isolation, the guilt after, the mask he puts on for others, the loneliness, the cycle. Use metaphors and emotional cinematography.
 
 CHARACTER:
 - Name: ${character.name}
@@ -64,26 +66,30 @@ CHARACTER:
 - Description: ${character.description_pt}
 - Visual prompt base: ${charAppearance}
 
-EPISODE ${epNum} OF 5:
-Narrative arc: ${arc}
+EPISODE ${epNum} OF 5 — NARRATIVE ARC:
+${arc}
 
 THEME/IDEA FROM THE CREATOR:
 ${theme}
 
 Generate exactly 15 scenes for this episode. Each scene must have:
-1. "narration" — short Brazilian Portuguese narration text (1-2 sentences, raw and emotional, first person)
-2. "description" — visual scene description in Portuguese (what we see on screen)
-3. "image_prompt" — English prompt for AI image generation. MUST include the character's appearance naturally. Use cinematic language: shot types (close-up, medium shot, wide shot, extreme close-up, back shot), lighting (warm, cold, dramatic, low-key), depth of field, emotional tone. Format: 16:9 widescreen cinematic.
+1. "narration" — short Brazilian Portuguese narration text (1-2 sentences, first person, raw and emotional, like he's confessing to himself). Use informal Brazilian Portuguese, natural speech patterns.
+2. "description" — visual scene description in Portuguese (what we see on screen). Be specific about the environment, body language, lighting mood.
+3. "image_prompt" — English prompt for AI image generation. MUST include the character's physical appearance naturally woven in. Use cinematic language: shot types (close-up, medium shot, wide shot, extreme close-up, back shot, over-the-shoulder), lighting (warm, cold, dramatic, low-key, monitor glow, phone screen light), shallow depth of field, emotional tone. Format: 16:9 widescreen cinematic. Style: Brazilian neo-realism, City of God / Elite Squad cinematography, Arri Alexa look, teal-green grading, film grain.
 
-The first scene should be a HOOK — something that grabs attention immediately.
-The last 2-3 scenes should be the emotional climax and resolution for this episode's arc.
-Build tension gradually through the middle scenes.
+STRUCTURE:
+- Scene 1: HOOK — grab attention immediately with a powerful visual or statement
+- Scenes 2-5: Build the situation, show normalcy cracking
+- Scenes 6-10: The tension escalates, the compulsion takes over
+- Scenes 11-13: The climax of this episode's arc
+- Scenes 14-15: Emotional aftermath / cliffhanger for next episode
 
-IMPORTANT:
-- The image prompts must be detailed and cinematic, suitable for AI image generation
+RULES:
+- NEVER generate explicit or sexual imagery in the prompts. Focus on the EMOTIONAL experience: faces, hands, body language, environments, lighting.
+- The image prompts must show the struggle, not the act. Phone screens should be blank/glowing. Focus on the person, not what they're watching.
 - Include the character's physical appearance in EVERY image prompt
-- Vary shot types (don't use only close-ups)
-- The narration should feel like a real person talking, raw and vulnerable
+- Vary shot types throughout (mix close-ups, medium shots, wide shots, detail shots)
+- The narration should feel like a real Brazilian man talking honestly about his struggle
 
 Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
 [{"narration":"...","description":"...","image_prompt":"..."},...]`;
