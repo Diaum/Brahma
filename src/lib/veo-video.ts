@@ -1,5 +1,48 @@
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
 const MODEL = "veo-3.1-fast-generate-preview";
+
+async function uploadToGeminiFiles(
+  base64Data: string,
+  mimeType: string,
+  apiKey: string
+): Promise<string | null> {
+  try {
+    const buffer = Buffer.from(base64Data, "base64");
+
+    // Start resumable upload
+    const startRes = await fetch(`${UPLOAD_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": mimeType,
+        "X-Goog-Upload-Protocol": "raw",
+        "X-Goog-Upload-Command": "upload, finalize",
+      },
+      body: buffer,
+    });
+
+    if (!startRes.ok) {
+      const errText = await startRes.text();
+      console.error("[veo] File upload error:", errText);
+      return null;
+    }
+
+    const data = await startRes.json();
+    const fileUri = data?.file?.uri;
+    if (!fileUri) {
+      console.error("[veo] No file URI in upload response:", JSON.stringify(data).slice(0, 300));
+      return null;
+    }
+
+    // Wait a moment for file processing
+    await new Promise((r) => setTimeout(r, 2000));
+
+    return fileUri;
+  } catch (err) {
+    console.error("[veo] Upload exception:", err);
+    return null;
+  }
+}
 
 interface StartVideoOptions {
   prompt: string;
@@ -28,19 +71,21 @@ export async function startVideoGeneration(
     prompt: options.prompt,
   };
 
-  // Image-to-video: use shot image as starting frame
+  // Image-to-video: upload to Gemini Files API first, then reference by URI
   if (options.imageBase64) {
-    instance.image = {
-      inlineData: {
-        mimeType: options.imageMimeType || "image/png",
-        data: options.imageBase64,
-      },
-    };
+    const fileUri = await uploadToGeminiFiles(
+      options.imageBase64,
+      options.imageMimeType || "image/png",
+      apiKey
+    );
+    if (fileUri) {
+      instance.image = { fileUri };
+    }
   }
 
   const parameters: Record<string, unknown> = {
     aspectRatio: options.aspectRatio || "16:9",
-    personGeneration: options.imageBase64 ? "allow_adult" : "allow_all",
+    personGeneration: instance.image ? "allow_adult" : "allow_all",
     durationSeconds: options.duration || "8",
   };
 
