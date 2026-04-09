@@ -624,11 +624,12 @@ export default function CharacterPage() {
     }
   }
 
-  // --- Animate shot (Veo) ---
+  // --- Animate shot (Veo / PixVerse) ---
   const [animatingId, setAnimatingId] = useState<string | null>(null);
   const [animatingOp, setAnimatingOp] = useState<string | null>(null);
   const [animDuration, setAnimDuration] = useState<number>(4);
   const [animPromptDraft, setAnimPromptDraft] = useState<string>("");
+  const [animProvider, setAnimProvider] = useState<"veo" | "pixverse">("veo");
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   function openAnimatePrompt(shot: Shot) {
@@ -651,6 +652,7 @@ export default function CharacterPage() {
           shotId: shot.id,
           prompt: customPrompt || shot.prompt_full || shot.prompt_scene,
           duration: animDuration,
+          provider: animProvider,
         }),
       });
 
@@ -1815,6 +1817,33 @@ export default function CharacterPage() {
                   {previewShot.status === "approved" &&
                     previewShot.image_url && (
                       <>
+                        <div>
+                          <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                            Provider
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setAnimProvider("veo")}
+                              className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                animProvider === "veo"
+                                  ? "bg-accent text-black border-accent font-semibold"
+                                  : "bg-card border-border text-muted hover:text-foreground"
+                              }`}
+                            >
+                              Veo
+                            </button>
+                            <button
+                              onClick={() => setAnimProvider("pixverse")}
+                              className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                animProvider === "pixverse"
+                                  ? "bg-accent text-black border-accent font-semibold"
+                                  : "bg-card border-border text-muted hover:text-foreground"
+                              }`}
+                            >
+                              PixVerse
+                            </button>
+                          </div>
+                        </div>
                         <div>
                           <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
                             Prompt da animacao

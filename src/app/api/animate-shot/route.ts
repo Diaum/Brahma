@@ -5,13 +5,19 @@ import {
   pollVideoOperation,
   downloadVideo,
 } from "@/lib/veo-video";
+import {
+  uploadImage as pixUploadImage,
+  startImageToVideo as pixStartVideo,
+  pollVideoStatus as pixPollStatus,
+  downloadPixVerseVideo,
+} from "@/lib/pixverse-video";
 import { getShotContext } from "@/lib/storage-paths";
 
 // POST: Start video generation for a shot
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shotId, prompt, duration } = body;
+    const { shotId, prompt, duration, provider = "veo" } = body;
 
     if (!shotId) {
       return NextResponse.json(
@@ -53,8 +59,8 @@ export async function POST(request: Request) {
 
     const rawPrompt = prompt || shot.prompt_full || shot.prompt_scene;
 
-    // Sanitize prompt — Veo is stricter than image generation
-    let visualPrompt = rawPrompt
+    // Sanitize prompt — both APIs are strict
+    const visualPrompt = rawPrompt
       .replace(/pornografi[ao]/gi, "compulsive screen behavior")
       .replace(/porn[ôo]/gi, "screen content")
       .replace(/sexu/gi, "compulsive")
@@ -63,25 +69,47 @@ export async function POST(request: Request) {
       .replace(/addiction/gi, "compulsion")
       .replace(/pornography/gi, "compulsive screen behavior");
 
-    // Minimal animation prompt — just bring the image to life subtly
-    const videoPrompt = `Subtly animate the provided image. No dialogue, no speech, no text, no audio. Only gentle, minimal motion: slow camera push-in, subtle pan, or slight handheld sway. The subject barely moves — only natural micro-movements like breathing, blinking, hair drifting, ambient light shifts. Keep everything else in the image identical. Context for reference: ${visualPrompt}`;
+    const animationPrompt = `Subtly animate the provided image. No dialogue, no speech, no text, no audio. Only gentle, minimal motion: slow camera push-in, subtle pan, or slight handheld sway. The subject barely moves — only natural micro-movements like breathing, blinking, hair drifting, ambient light shifts. Keep everything else in the image identical. Context: ${visualPrompt}`;
 
-    // Start Veo generation
-    const operationName = await startVideoGeneration({
-      prompt: videoPrompt,
-      imageBase64,
-      imageMimeType,
-      aspectRatio: "16:9",
-      duration: duration ?? 4,
-    });
+    let opIdentifier: string;
 
-    // Save operation name to shot
+    if (provider === "pixverse") {
+      if (!imageBase64) {
+        return NextResponse.json(
+          { error: "PixVerse requer uma imagem" },
+          { status: 400 }
+        );
+      }
+
+      const imgId = await pixUploadImage(imageBase64, imageMimeType || "image/png");
+      const videoId = await pixStartVideo({
+        imgId,
+        prompt: animationPrompt,
+        duration: (duration ?? 5) === 8 ? 8 : 5,
+        quality: "540p",
+        motionMode: "normal",
+      });
+
+      opIdentifier = `pixverse:${videoId}`;
+    } else {
+      // Veo (default)
+      const operationName = await startVideoGeneration({
+        prompt: animationPrompt,
+        imageBase64,
+        imageMimeType,
+        aspectRatio: "16:9",
+        duration: duration ?? 4,
+      });
+      opIdentifier = `veo:${operationName}`;
+    }
+
+    // Save operation identifier to shot
     await supabase
       .from("shots")
-      .update({ video_operation: operationName, status: "animated" })
+      .update({ video_operation: opIdentifier, status: "animated" })
       .eq("id", shotId);
 
-    return NextResponse.json({ operationName, shotId });
+    return NextResponse.json({ operationName: opIdentifier, shotId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     console.error("[animate-shot] Error:", message);
@@ -104,38 +132,78 @@ export async function GET(request: Request) {
     }
 
     console.log("[animate-shot GET] Polling:", operationName);
-    const status = await pollVideoOperation(operationName);
-    console.log("[animate-shot GET] Status:", JSON.stringify(status));
 
-    if (!status.done) {
+    // Determine provider from prefix
+    const isPixVerse = operationName.startsWith("pixverse:");
+    const isVeo = operationName.startsWith("veo:") || (!isPixVerse && operationName.includes("operations/"));
+
+    let done = false;
+    let videoBuffer: Buffer | null = null;
+    let videoMime = "video/mp4";
+    let errorMsg: string | null = null;
+
+    if (isPixVerse) {
+      const videoId = parseInt(operationName.replace("pixverse:", ""), 10);
+      const status = await pixPollStatus(videoId);
+
+      if (!status.done) {
+        return NextResponse.json({ done: false, shotId });
+      }
+
+      if (status.error) {
+        errorMsg = status.error;
+      } else if (status.url) {
+        const { buffer, mimeType } = await downloadPixVerseVideo(status.url);
+        videoBuffer = buffer;
+        videoMime = mimeType;
+      }
+      done = true;
+    } else if (isVeo) {
+      const veoOpName = operationName.startsWith("veo:")
+        ? operationName.replace("veo:", "")
+        : operationName;
+      const status = await pollVideoOperation(veoOpName);
+
+      if (!status.done) {
+        return NextResponse.json({ done: false, shotId });
+      }
+
+      if (status.error) {
+        errorMsg = status.error;
+      } else if (status.videoUri) {
+        const { buffer, mimeType } = await downloadVideo(status.videoUri);
+        videoBuffer = buffer;
+        videoMime = mimeType;
+      }
+      done = true;
+    }
+
+    if (!done) {
       return NextResponse.json({ done: false, shotId });
     }
 
-    if (status.error) {
-      console.error("[animate-shot GET] Status error:", status.error);
-      // Clear video_operation so polling doesn't auto-retry on next page load
+    if (errorMsg) {
+      console.error("[animate-shot GET] Error:", errorMsg);
       await supabase
         .from("shots")
         .update({ video_operation: null, status: "approved" })
         .eq("id", shotId);
       return NextResponse.json(
-        { done: true, error: status.error },
+        { done: true, error: errorMsg },
         { status: 500 }
       );
     }
 
-    // Video is ready — download and upload to Supabase Storage
-    if (status.videoUri) {
-      const { buffer, mimeType } = await downloadVideo(status.videoUri);
-
+    if (videoBuffer) {
       const ctx = await getShotContext(shotId);
       const fileName = ctx
         ? `${ctx.characterSlug}/ep${String(ctx.episodeNumber).padStart(2, "0")}/video-shot${String(ctx.shotNumber).padStart(2, "0")}-${Date.now()}.mp4`
         : `videos/${shotId}/${Date.now()}.mp4`;
+
       const { error: uploadError } = await supabase.storage
         .from("brahma-images")
-        .upload(fileName, buffer, {
-          contentType: mimeType,
+        .upload(fileName, videoBuffer, {
+          contentType: videoMime,
           upsert: true,
         });
 
@@ -150,7 +218,6 @@ export async function GET(request: Request) {
         data: { publicUrl },
       } = supabase.storage.from("brahma-images").getPublicUrl(fileName);
 
-      // Update shot with video URL
       await supabase
         .from("shots")
         .update({ video_url: publicUrl, video_operation: null })
@@ -159,7 +226,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ done: true, video_url: publicUrl, shotId });
     }
 
-    return NextResponse.json({ done: true, error: "No video URI" }, { status: 500 });
+    return NextResponse.json({ done: true, error: "No video data" }, { status: 500 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     console.error("[animate-shot] Poll error:", message);
