@@ -1063,7 +1063,7 @@ export default function CharacterPage() {
                     <div className="absolute bottom-0 left-0 right-0 p-2.5">
                       <h3 className="font-bold text-sm text-white drop-shadow-lg mb-0.5 line-clamp-2">
                         <span className="text-accent">EP {epIndex + 1}</span>{" "}
-                        &quot;{ep.title}&quot;
+                        {ep.title}
                       </h3>
                       <div className="flex items-center gap-1.5 text-[10px] text-white/80">
                         <span>{epShotsCount} shots</span>
@@ -1141,7 +1141,7 @@ export default function CharacterPage() {
                       }}
                       title="Clique para editar"
                     >
-                      &quot;{ep.title}&quot;
+                      {ep.title}
                     </h3>
                   )}
                   <span className="text-xs text-muted">

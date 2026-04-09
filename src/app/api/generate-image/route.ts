@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateImage } from "@/lib/gemini-image";
 import { supabase } from "@/lib/supabase";
+import { getShotContext } from "@/lib/storage-paths";
 
 export async function POST(request: Request) {
   try {
@@ -72,7 +73,10 @@ export async function POST(request: Request) {
     }
 
     // Shot image generation flow (existing behavior)
-    const fileName = `shots/${shotId}/${Date.now()}.png`;
+    const ctx = await getShotContext(shotId);
+    const fileName = ctx
+      ? `${ctx.characterSlug}/ep${String(ctx.episodeNumber).padStart(2, "0")}/shot${String(ctx.shotNumber).padStart(2, "0")}-${Date.now()}.png`
+      : `shots/${shotId}/${Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from("brahma-images")

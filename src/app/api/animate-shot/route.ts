@@ -5,6 +5,7 @@ import {
   pollVideoOperation,
   downloadVideo,
 } from "@/lib/veo-video";
+import { getShotContext } from "@/lib/storage-paths";
 
 // POST: Start video generation for a shot
 export async function POST(request: Request) {
@@ -127,7 +128,10 @@ export async function GET(request: Request) {
     if (status.videoUri) {
       const { buffer, mimeType } = await downloadVideo(status.videoUri);
 
-      const fileName = `videos/${shotId}/${Date.now()}.mp4`;
+      const ctx = await getShotContext(shotId);
+      const fileName = ctx
+        ? `${ctx.characterSlug}/ep${String(ctx.episodeNumber).padStart(2, "0")}/video-shot${String(ctx.shotNumber).padStart(2, "0")}-${Date.now()}.mp4`
+        : `videos/${shotId}/${Date.now()}.mp4`;
       const { error: uploadError } = await supabase.storage
         .from("brahma-images")
         .upload(fileName, buffer, {

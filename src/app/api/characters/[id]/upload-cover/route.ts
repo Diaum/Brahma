@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getCharacterSlug } from "@/lib/storage-paths";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -18,7 +19,8 @@ export async function POST(
 
   const imageBuffer = Buffer.from(image_base64, "base64");
   const ext = mime_type?.includes("jpeg") ? "jpg" : "png";
-  const fileName = `characters/${id}/${Date.now()}.${ext}`;
+  const charSlug = await getCharacterSlug(id);
+  const fileName = `${charSlug}/cover-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("brahma-images")
