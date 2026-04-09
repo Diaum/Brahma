@@ -256,6 +256,21 @@ export default function CharacterPage() {
     return episodes.findIndex((e) => e.id === epId) + 1;
   }
 
+  // Helper: build a clean filename for downloads
+  function buildFileName(shot: Shot, ext: string): string {
+    const charName = (character?.name || "personagem")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+    const epNum = String(getEpisodeNumber(shot.episode_id)).padStart(2, "0");
+    const epShots = (shotsByEp[shot.episode_id] || []).sort(
+      (a, b) => a.order - b.order
+    );
+    const shotIdx = epShots.findIndex((s) => s.id === shot.id);
+    const shotNum = String(shotIdx + 1).padStart(2, "0");
+    return `${charName}-ep${epNum}-shot${shotNum}.${ext}`;
+  }
+
   // Download script (narration + description only)
   const [copied, setCopied] = useState(false);
 
@@ -562,9 +577,17 @@ export default function CharacterPage() {
   const [animatingId, setAnimatingId] = useState<string | null>(null);
   const [animatingOp, setAnimatingOp] = useState<string | null>(null);
   const [animDuration, setAnimDuration] = useState<number>(4);
+  const [animPromptDraft, setAnimPromptDraft] = useState<string>("");
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  async function handleAnimate(shot: Shot) {
+  function openAnimatePrompt(shot: Shot) {
+    // Default to a clean minimal animation prompt
+    setAnimPromptDraft(
+      "Animar levemente a imagem com leve movimento de camera (push-in lento ou pan suave). Personagem com micro-movimentos naturais como respiração e piscar."
+    );
+  }
+
+  async function handleAnimate(shot: Shot, customPrompt?: string) {
     if (!shot.image_url) return;
     setAnimatingId(shot.id);
     setError(null);
@@ -575,7 +598,7 @@ export default function CharacterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shotId: shot.id,
-          prompt: shot.prompt_full || shot.prompt_scene,
+          prompt: customPrompt || shot.prompt_full || shot.prompt_scene,
           duration: animDuration,
         }),
       });
@@ -711,6 +734,28 @@ export default function CharacterPage() {
     setDeleteTarget(null);
   }
 
+  // --- Download video ---
+  async function handleDownloadVideo(shot: Shot) {
+    if (!shot.video_url) return;
+    try {
+      const res = await fetch(shot.video_url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = buildFileName(shot, "mp4");
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch {
+      setError("Erro ao baixar video");
+    }
+  }
+
   // --- Download ---
   async function handleDownload(shot: Shot, format: "original" | "landscape" = "original") {
     if (!shot.image_url) return;
@@ -743,7 +788,7 @@ export default function CharacterPage() {
           const url = URL.createObjectURL(b);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}-16x9.png`;
+          a.download = buildFileName(shot, "png");
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -754,7 +799,7 @@ export default function CharacterPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${character?.name || "shot"}-${shot.id.slice(0, 8)}-9x16.png`;
+        a.download = buildFileName(shot, "png");
         a.style.display = "none";
         document.body.appendChild(a);
         a.click();
@@ -1193,15 +1238,15 @@ export default function CharacterPage() {
                             {shot.status === "animated" && (
                               <>
                                 {shot.video_url ? (
-                                  <a
-                                    href={shot.video_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition text-center cursor-pointer"
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadVideo(shot);
+                                    }}
+                                    className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition cursor-pointer"
                                   >
                                     Download Video
-                                  </a>
+                                  </button>
                                 ) : animatingId === shot.id ? (
                                   <span className="flex-1 text-[11px] text-muted text-center py-1.5">
                                     Animando...
@@ -1596,6 +1641,24 @@ export default function CharacterPage() {
                       <>
                         <div>
                           <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                            Prompt da animacao
+                          </label>
+                          <textarea
+                            value={animPromptDraft || ""}
+                            onFocus={() => {
+                              if (!animPromptDraft) openAnimatePrompt(previewShot);
+                            }}
+                            onChange={(e) => setAnimPromptDraft(e.target.value)}
+                            placeholder="Como o video deve se mover... (clique para editar)"
+                            rows={3}
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-accent transition resize-none"
+                          />
+                          <p className="text-[10px] text-muted mt-1">
+                            Sera enviado ao Veo. Edite se a cena estiver sendo bloqueada.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
                             Duracao do video
                           </label>
                           <div className="flex gap-2">
@@ -1615,7 +1678,7 @@ export default function CharacterPage() {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleAnimate(previewShot)}
+                          onClick={() => handleAnimate(previewShot, animPromptDraft || undefined)}
                           disabled={animatingId === previewShot.id}
                           className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
                         >
@@ -1632,14 +1695,12 @@ export default function CharacterPage() {
                   {previewShot.status === "animated" && (
                     <>
                       {previewShot.video_url && (
-                        <a
-                          href={previewShot.video_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition text-center cursor-pointer text-sm block"
+                        <button
+                          onClick={() => handleDownloadVideo(previewShot)}
+                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
                         >
                           Download Video
-                        </a>
+                        </button>
                       )}
                       <button
                         onClick={() => handleDownload(previewShot, "original")}
