@@ -10,7 +10,7 @@ import {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shotId, prompt } = body;
+    const { shotId, prompt, duration } = body;
 
     if (!shotId) {
       return NextResponse.json(
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       imageBase64,
       imageMimeType,
       aspectRatio: "16:9",
-      duration: "8",
+      duration: duration ?? 4,
     });
 
     // Save operation name to shot

@@ -561,6 +561,7 @@ export default function CharacterPage() {
   // --- Animate shot (Veo) ---
   const [animatingId, setAnimatingId] = useState<string | null>(null);
   const [animatingOp, setAnimatingOp] = useState<string | null>(null);
+  const [animDuration, setAnimDuration] = useState<number>(4);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   async function handleAnimate(shot: Shot) {
@@ -575,6 +576,7 @@ export default function CharacterPage() {
         body: JSON.stringify({
           shotId: shot.id,
           prompt: shot.prompt_full || shot.prompt_scene,
+          duration: animDuration,
         }),
       });
 
@@ -1592,12 +1594,32 @@ export default function CharacterPage() {
                   {previewShot.status === "approved" &&
                     previewShot.image_url && (
                       <>
+                        <div>
+                          <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                            Duracao do video
+                          </label>
+                          <div className="flex gap-2">
+                            {[4, 6, 8].map((sec) => (
+                              <button
+                                key={sec}
+                                onClick={() => setAnimDuration(sec)}
+                                className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                  animDuration === sec
+                                    ? "bg-accent text-black border-accent font-semibold"
+                                    : "bg-card border-border text-muted hover:text-foreground"
+                                }`}
+                              >
+                                {sec}s
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <button
                           onClick={() => handleAnimate(previewShot)}
                           disabled={animatingId === previewShot.id}
                           className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
                         >
-                          {animatingId === previewShot.id ? "Animando..." : "Animar (8s video)"}
+                          {animatingId === previewShot.id ? "Animando..." : `Animar (${animDuration}s)`}
                         </button>
                         <button
                           onClick={() => handleDownload(previewShot, "original")}

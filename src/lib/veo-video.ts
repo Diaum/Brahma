@@ -49,7 +49,7 @@ interface StartVideoOptions {
   imageBase64?: string;
   imageMimeType?: string;
   aspectRatio?: string;
-  duration?: string;
+  duration?: number;
 }
 
 interface VideoOperationStatus {
@@ -82,7 +82,7 @@ export async function startVideoGeneration(
   const parameters: Record<string, unknown> = {
     aspectRatio: options.aspectRatio || "16:9",
     personGeneration: instance.image ? "allow_adult" : "allow_all",
-    durationSeconds: options.duration || "8",
+    durationSeconds: options.duration ?? 4,
   };
 
   const res = await fetch(
