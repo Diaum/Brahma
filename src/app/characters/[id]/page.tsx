@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui";
 
@@ -27,6 +27,8 @@ interface Shot {
   prompt_full: string;
   status: string;
   image_url: string | null;
+  video_url: string | null;
+  video_operation: string | null;
   order: number;
   episode_id: string;
 }
@@ -556,6 +558,98 @@ export default function CharacterPage() {
     }
   }
 
+  // --- Animate shot (Veo) ---
+  const [animatingId, setAnimatingId] = useState<string | null>(null);
+  const [animatingOp, setAnimatingOp] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  async function handleAnimate(shot: Shot) {
+    if (!shot.image_url) return;
+    setAnimatingId(shot.id);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/animate-shot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shotId: shot.id,
+          prompt: shot.prompt_full || shot.prompt_scene,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao iniciar animacao");
+      }
+
+      const data = await res.json();
+      setAnimatingOp(data.operationName);
+
+      // Start polling
+      pollAnimation(shot.id, data.operationName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+      setAnimatingId(null);
+    }
+  }
+
+  function pollAnimation(shotId: string, opName: string) {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/animate-shot?shotId=${shotId}&operation=${encodeURIComponent(opName)}`
+        );
+        const data = await res.json();
+
+        if (data.done) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setAnimatingId(null);
+          setAnimatingOp(null);
+
+          if (data.video_url) {
+            // Update shot in local state
+            setShotsByEp((prev) => {
+              const updated = { ...prev };
+              for (const epId in updated) {
+                updated[epId] = updated[epId].map((s) =>
+                  s.id === shotId
+                    ? { ...s, video_url: data.video_url, video_operation: null, status: "animated" }
+                    : s
+                );
+              }
+              return updated;
+            });
+          } else if (data.error) {
+            setError(`Animacao falhou: ${data.error}`);
+          }
+        }
+      } catch {
+        // Keep polling on network errors
+      }
+    }, 10000); // Poll every 10s
+  }
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
+
+  // Resume polling for shots with pending operations on load
+  useEffect(() => {
+    const allShots = Object.values(shotsByEp).flat();
+    const pendingAnim = allShots.find((s) => s.video_operation);
+    if (pendingAnim && pendingAnim.video_operation) {
+      setAnimatingId(pendingAnim.id);
+      pollAnimation(pendingAnim.id, pendingAnim.video_operation);
+    }
+  }, [shotsByEp]);
+
   // --- Approve shot ---
   async function handleApprove(shot: Shot) {
     const res = await fetch(
@@ -1078,12 +1172,50 @@ export default function CharacterPage() {
                               </>
                             )}
                             {shot.status === "approved" && shot.image_url && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
-                                className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition cursor-pointer"
-                              >
-                                Download
-                              </button>
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAnimate(shot); }}
+                                  disabled={animatingId === shot.id}
+                                  className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+                                >
+                                  {animatingId === shot.id ? "Animando..." : "Animar"}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
+                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
+                                >
+                                  Download
+                                </button>
+                              </>
+                            )}
+                            {shot.status === "animated" && (
+                              <>
+                                {shot.video_url ? (
+                                  <a
+                                    href={shot.video_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 text-[11px] bg-accent text-black font-semibold py-1.5 rounded-md hover:opacity-90 transition text-center cursor-pointer"
+                                  >
+                                    Download Video
+                                  </a>
+                                ) : animatingId === shot.id ? (
+                                  <span className="flex-1 text-[11px] text-muted text-center py-1.5">
+                                    Animando...
+                                  </span>
+                                ) : (
+                                  <span className="flex-1 text-[11px] text-muted text-center py-1.5">
+                                    Processando...
+                                  </span>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDownload(shot, "original"); }}
+                                  className="flex-1 text-[11px] bg-card border border-border font-medium py-1.5 rounded-md hover:bg-card-hover transition cursor-pointer"
+                                >
+                                  Imagem
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1379,13 +1511,23 @@ export default function CharacterPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Image — vertical */}
-            {previewShot.image_url && (
+            {(previewShot.video_url || previewShot.image_url) && (
               <div className="shrink-0">
-                <img
-                  src={previewShot.image_url}
-                  alt={previewShot.prompt_scene}
-                  className="h-[80vh] w-auto rounded-2xl object-cover shadow-2xl"
-                />
+                {previewShot.video_url ? (
+                  <video
+                    src={previewShot.video_url}
+                    controls
+                    autoPlay
+                    loop
+                    className="h-[80vh] w-auto rounded-2xl shadow-2xl"
+                  />
+                ) : (
+                  <img
+                    src={previewShot.image_url!}
+                    alt={previewShot.prompt_scene}
+                    className="h-[80vh] w-auto rounded-2xl object-cover shadow-2xl"
+                  />
+                )}
               </div>
             )}
 
@@ -1449,13 +1591,42 @@ export default function CharacterPage() {
                   )}
                   {previewShot.status === "approved" &&
                     previewShot.image_url && (
+                      <>
+                        <button
+                          onClick={() => handleAnimate(previewShot)}
+                          disabled={animatingId === previewShot.id}
+                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
+                        >
+                          {animatingId === previewShot.id ? "Animando..." : "Animar (8s video)"}
+                        </button>
+                        <button
+                          onClick={() => handleDownload(previewShot, "original")}
+                          className="w-full bg-card border border-border text-foreground font-medium px-4 py-2.5 rounded-lg hover:bg-card-hover transition cursor-pointer text-sm"
+                        >
+                          Download Imagem
+                        </button>
+                      </>
+                    )}
+                  {previewShot.status === "animated" && (
+                    <>
+                      {previewShot.video_url && (
+                        <a
+                          href={previewShot.video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition text-center cursor-pointer text-sm block"
+                        >
+                          Download Video
+                        </a>
+                      )}
                       <button
                         onClick={() => handleDownload(previewShot, "original")}
-                        className="w-full bg-accent text-black font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition cursor-pointer text-sm"
+                        className="w-full bg-card border border-border text-foreground font-medium px-4 py-2.5 rounded-lg hover:bg-card-hover transition cursor-pointer text-sm"
                       >
-                        Download
+                        Download Imagem
                       </button>
-                    )}
+                    </>
+                  )}
                   <button
                     onClick={() =>
                       setDeleteTarget({ type: "shot", shot: previewShot })
