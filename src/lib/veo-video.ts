@@ -71,16 +71,12 @@ export async function startVideoGeneration(
     prompt: options.prompt,
   };
 
-  // Image-to-video: upload to Gemini Files API first, then reference by URI
+  // Image-to-video: use bytesBase64Encoded format (Vertex AI style)
   if (options.imageBase64) {
-    const fileUri = await uploadToGeminiFiles(
-      options.imageBase64,
-      options.imageMimeType || "image/png",
-      apiKey
-    );
-    if (fileUri) {
-      instance.image = { fileUri };
-    }
+    instance.image = {
+      bytesBase64Encoded: options.imageBase64,
+      mimeType: options.imageMimeType || "image/png",
+    };
   }
 
   const parameters: Record<string, unknown> = {
