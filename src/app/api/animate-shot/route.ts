@@ -112,6 +112,11 @@ export async function GET(request: Request) {
 
     if (status.error) {
       console.error("[animate-shot GET] Status error:", status.error);
+      // Clear video_operation so polling doesn't auto-retry on next page load
+      await supabase
+        .from("shots")
+        .update({ video_operation: null, status: "approved" })
+        .eq("id", shotId);
       return NextResponse.json(
         { done: true, error: status.error },
         { status: 500 }

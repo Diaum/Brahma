@@ -701,6 +701,18 @@ export default function CharacterPage() {
             });
           } else if (data.error) {
             setError(`Animacao falhou: ${data.error}`);
+            // Clear video_operation in local state to prevent auto-retry
+            setShotsByEp((prev) => {
+              const updated = { ...prev };
+              for (const epId in updated) {
+                updated[epId] = updated[epId].map((s) =>
+                  s.id === shotId
+                    ? { ...s, video_operation: null, status: "approved" }
+                    : s
+                );
+              }
+              return updated;
+            });
           }
         }
       } catch {
@@ -716,11 +728,14 @@ export default function CharacterPage() {
     };
   }, []);
 
-  // Resume polling for shots with pending operations on load
+  // Resume polling for shots with pending operations on load (only once)
+  const resumedRef = useRef(false);
   useEffect(() => {
+    if (resumedRef.current) return;
     const allShots = Object.values(shotsByEp).flat();
     const pendingAnim = allShots.find((s) => s.video_operation);
     if (pendingAnim && pendingAnim.video_operation) {
+      resumedRef.current = true;
       setAnimatingId(pendingAnim.id);
       pollAnimation(pendingAnim.id, pendingAnim.video_operation);
     }
