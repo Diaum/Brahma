@@ -133,14 +133,20 @@ export async function pollVideoOperation(
   }
 
   const data = await res.json();
+  console.log("[veo poll] Response:", JSON.stringify(data).slice(0, 800));
 
   if (data.done) {
-    // Extract video URI
+    // Try multiple paths for video URI (response format varies)
     const videoUri =
-      data.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+      data.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri ||
+      data.response?.videos?.[0]?.uri ||
+      data.response?.generatedVideos?.[0]?.video?.uri;
 
     if (!videoUri) {
-      const errorMsg = data.error?.message || "Nenhum video gerado";
+      const errorMsg =
+        data.error?.message ||
+        data.response?.raiMediaFilteredReason ||
+        `Nenhum video gerado. Resposta: ${JSON.stringify(data).slice(0, 300)}`;
       return { done: true, operationName, error: errorMsg };
     }
 

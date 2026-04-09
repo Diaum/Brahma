@@ -89,13 +89,16 @@ export async function GET(request: Request) {
       );
     }
 
+    console.log("[animate-shot GET] Polling:", operationName);
     const status = await pollVideoOperation(operationName);
+    console.log("[animate-shot GET] Status:", JSON.stringify(status));
 
     if (!status.done) {
       return NextResponse.json({ done: false, shotId });
     }
 
     if (status.error) {
+      console.error("[animate-shot GET] Status error:", status.error);
       return NextResponse.json(
         { done: true, error: status.error },
         { status: 500 }
