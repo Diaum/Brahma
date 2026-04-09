@@ -94,7 +94,7 @@ export async function startImageToVideo(
   const body: Record<string, unknown> = {
     img_id: options.imgId,
     prompt: options.prompt,
-    model: "v4.5",
+    model: "v5.6",
     duration,
     quality,
     motion_mode: motionMode,
