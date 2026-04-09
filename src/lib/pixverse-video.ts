@@ -86,13 +86,18 @@ export async function startImageToVideo(
 ): Promise<number> {
   const apiKey = getApiKey();
 
+  // 1080p only supports 5s and normal motion (per PixVerse docs)
+  const quality = options.quality ?? "1080p";
+  const duration = quality === "1080p" ? 5 : (options.duration ?? 5);
+  const motionMode = quality === "1080p" ? "normal" : (options.motionMode ?? "normal");
+
   const body: Record<string, unknown> = {
     img_id: options.imgId,
     prompt: options.prompt,
     model: "v4.5",
-    duration: options.duration ?? 5,
-    quality: options.quality ?? "540p",
-    motion_mode: options.motionMode ?? "normal",
+    duration,
+    quality,
+    motion_mode: motionMode,
   };
 
   if (options.negativePrompt) body.negative_prompt = options.negativePrompt;

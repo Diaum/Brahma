@@ -747,6 +747,7 @@ export default function CharacterPage() {
   const [animPromptDraft, setAnimPromptDraft] = useState<string>("");
   const [animProvider, setAnimProvider] = useState<"veo" | "pixverse">("veo");
   const [animUseRawPrompt, setAnimUseRawPrompt] = useState(false);
+  const [showRegenVideoPanel, setShowRegenVideoPanel] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   function openAnimatePrompt(shot: Shot) {
@@ -2054,6 +2055,107 @@ export default function CharacterPage() {
                       >
                         Download Imagem
                       </button>
+
+                      {!showRegenVideoPanel ? (
+                        <button
+                          onClick={() => setShowRegenVideoPanel(true)}
+                          className="w-full bg-card border border-border text-muted hover:text-foreground font-medium px-4 py-2.5 rounded-lg hover:bg-card-hover transition cursor-pointer text-sm"
+                        >
+                          Gerar Novo Video
+                        </button>
+                      ) : (
+                        <div className="space-y-3 border-t border-border pt-3">
+                          <div>
+                            <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                              Provider
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setAnimProvider("veo")}
+                                className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                  animProvider === "veo"
+                                    ? "bg-accent text-black border-accent font-semibold"
+                                    : "bg-card border-border text-muted hover:text-foreground"
+                                }`}
+                              >
+                                Veo
+                              </button>
+                              <button
+                                onClick={() => setAnimProvider("pixverse")}
+                                className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                  animProvider === "pixverse"
+                                    ? "bg-accent text-black border-accent font-semibold"
+                                    : "bg-card border-border text-muted hover:text-foreground"
+                                }`}
+                              >
+                                PixVerse
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                              Prompt da animacao
+                            </label>
+                            <textarea
+                              value={animPromptDraft || ""}
+                              onFocus={() => {
+                                if (!animPromptDraft) openAnimatePrompt(previewShot);
+                              }}
+                              onChange={(e) => setAnimPromptDraft(e.target.value)}
+                              placeholder="Como o video deve se mover..."
+                              rows={3}
+                              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-accent transition resize-none"
+                            />
+                            <label className="flex items-center gap-2 mt-2 cursor-pointer text-[11px] text-muted">
+                              <input
+                                type="checkbox"
+                                checked={animUseRawPrompt}
+                                onChange={(e) => setAnimUseRawPrompt(e.target.checked)}
+                                className="cursor-pointer"
+                              />
+                              Usar prompt completo (sem template)
+                            </label>
+                          </div>
+                          <div>
+                            <label className="text-[11px] text-muted uppercase tracking-wide block mb-1.5">
+                              Duracao
+                            </label>
+                            <div className="flex gap-2">
+                              {[4, 5, 6, 8].map((sec) => (
+                                <button
+                                  key={sec}
+                                  onClick={() => setAnimDuration(sec)}
+                                  className={`flex-1 text-xs py-2 rounded-lg border transition cursor-pointer ${
+                                    animDuration === sec
+                                      ? "bg-accent text-black border-accent font-semibold"
+                                      : "bg-card border-border text-muted hover:text-foreground"
+                                  }`}
+                                >
+                                  {sec}s
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                handleAnimate(previewShot, animPromptDraft || undefined);
+                                setShowRegenVideoPanel(false);
+                              }}
+                              disabled={animatingId === previewShot.id}
+                              className="flex-1 bg-accent text-black font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
+                            >
+                              {animatingId === previewShot.id ? "Animando..." : "Gerar"}
+                            </button>
+                            <button
+                              onClick={() => setShowRegenVideoPanel(false)}
+                              className="text-muted hover:text-foreground text-sm px-3 cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                   <button
