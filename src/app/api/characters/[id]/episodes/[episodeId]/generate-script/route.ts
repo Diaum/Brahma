@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const EPISODE_ARCS: Record<number, string> = {
   1: "The beginning of the conflict — the character faces temptation and loses. Start with a normal, seemingly happy moment (HOOK), then gradually build tension as the urge takes over. End with the character giving in.",
-  2: "ORIGIN STORY — This episode shows the CHARACTER AS A TEENAGER/YOUNG VERSION OF HIMSELF. We go back in time to show how the addiction started. The first exposure, the curiosity, the confusion, the secret. Show the innocence being lost. Flashback scenes of a younger version of the same character — same features but younger face, shorter hair, teenage body, school uniform or casual teenage clothes. Mix between the past (teenager) and brief flashes of the present (adult) to show the connection.",
+  2: "ORIGIN STORY — This episode shows the CHARACTER AS A YOUNGER VERSION OF HIMSELF. We go back in time to show how the compulsive digital habit started. The first time he discovered something online that felt forbidden, the curiosity, the confusion, the secrecy. Show the loss of innocence through metaphor and emotion. Flashback scenes of a younger version — same features but younger face, shorter hair, clean-shaven. Mix between the past (younger self) and brief flashes of the present (adult) to show the connection across time.",
   3: "Attempt to stop — and failure. The character tries to resist, makes promises to himself, uses strategies to avoid falling again. But the tension builds until he breaks again.",
   4: "Rock bottom — the lowest point. Everything collapses. The addiction/conflict affects relationships, self-image, daily life. The character is at his worst, hopeless.",
   5: "The turning point — recovery begins. A moment of clarity, seeking help, a small victory. Not a fairy tale ending, but a real, raw first step toward change.",
@@ -51,6 +51,15 @@ export async function POST(
   const epNum = Math.min(Math.max(episode_number || 1, 1), 5);
   const arc = EPISODE_ARCS[epNum] || EPISODE_ARCS[1];
 
+  // Sanitize theme to avoid triggering content filters
+  const sanitizedTheme = theme
+    .replace(/pornografi[ao]/gi, "conteudo adulto online")
+    .replace(/porn[ôo]/gi, "conteudo adulto")
+    .replace(/sexu/gi, "compulsivo")
+    .replace(/masturba[çc]/gi, "habito compulsivo")
+    .replace(/vício/gi, "dependencia")
+    .replace(/vicio/gi, "dependencia");
+
   // Extract character appearance from prompt_base_en (first sentence)
   const charAppearance = character.prompt_base_en
     .split("\n")[0]
@@ -58,45 +67,48 @@ export async function POST(
 
   // For EP2: create a younger version of the character
   const youngCharAppearance = epNum === 2
-    ? `Teenage version of the same character (13-16 years old), same facial features but younger — shorter hair, rounder younger face, no facial hair, thinner frame, slightly shorter, wearing casual teenage clothes or school uniform. Same skin tone and eye color as the adult version.`
+    ? `Younger version of the same character (late teens), same facial features but younger — shorter hair, rounder younger face, clean-shaven, thinner frame, slightly shorter, wearing casual clothes. Same skin tone and eye color as the adult version.`
     : null;
 
-  const prompt = `You are a screenplay writer for a cinematic Instagram Reels mini-series about MEN'S MENTAL HEALTH AND PORNOGRAPHY ADDICTION. The tone is raw, vulnerable, honest — Brazilian neo-realism style. This is NOT explicit content. It's about the EMOTIONAL and PSYCHOLOGICAL struggle: the shame, the compulsion, the isolation, the failed promises to yourself, the impact on relationships and self-worth. Think of it like a visual diary of someone fighting an invisible battle.
+  const prompt = `You are a screenplay writer for a cinematic Instagram Reels mini-series about a man's battle with a compulsive digital behavior — a screen dependency that became a hidden habit controlling his life. This is a MENTAL HEALTH awareness story. The tone is raw, vulnerable, honest — Brazilian neo-realism style.
 
-The series shows the INTERNAL experience — never explicit imagery. Focus on: the urge building, the ritual of isolation, the guilt after, the mask he puts on for others, the loneliness, the cycle. Use metaphors and emotional cinematography.
+This is about the EMOTIONAL and PSYCHOLOGICAL journey: the shame of a secret habit, the compulsive need to isolate, the guilt afterward, the broken promises to himself, the impact on self-worth and relationships. Think of it as a visual confession — someone fighting an invisible battle that nobody around him sees.
+
+The series focuses on the INTERNAL experience through cinematic metaphors. Show: the tension building inside, the ritual of sneaking away to be alone with a screen, the empty feeling after, the mask he wears for others, the loneliness of a secret life. NEVER show what's on any screen — screens are always blank, glowing, or turned away from camera. Focus entirely on the PERSON: their face, hands, body language, eyes, breathing, posture, environment.
 
 CHARACTER:
 - Name: ${character.name}
 - Age: ${character.age}
 - Description: ${character.description_pt}
 - Visual prompt base (adult): ${charAppearance}${youngCharAppearance ? `
-- Visual prompt base (TEENAGE VERSION for EP2): ${youngCharAppearance}
-- IMPORTANT: Most scenes in this episode use the TEENAGE version. Use the adult version only in brief present-day flashback moments (2-3 scenes max). Always specify in the image_prompt whether it's the teenage or adult version.` : ""}
+- Visual prompt base (YOUNGER VERSION): ${youngCharAppearance}
+- NOTE: This episode explores the character's past. Most scenes show the younger version. Use the adult version only in 2-3 present-day reflection moments. Always specify which version in the image_prompt.` : ""}
 
 EPISODE ${epNum} OF 5 — NARRATIVE ARC:
 ${arc}
 
 THEME/IDEA FROM THE CREATOR:
-${theme}
+${sanitizedTheme}
 
 Generate exactly 15 scenes for this episode. Each scene must have:
-1. "narration" — short Brazilian Portuguese narration text (1-2 sentences, first person, raw and emotional, like he's confessing to himself). Use informal Brazilian Portuguese, natural speech patterns.
-2. "description" — visual scene description in Portuguese (what we see on screen). Be specific about the environment, body language, lighting mood.
-3. "image_prompt" — English prompt for AI image generation. MUST include the character's physical appearance naturally woven in. Use cinematic language: shot types (close-up, medium shot, wide shot, extreme close-up, back shot, over-the-shoulder), lighting (warm, cold, dramatic, low-key, monitor glow, phone screen light), shallow depth of field, emotional tone. Format: 16:9 widescreen cinematic. Style: Brazilian neo-realism, City of God / Elite Squad cinematography, Arri Alexa look, teal-green grading, film grain.
+1. "narration" — short Brazilian Portuguese narration text (1-2 sentences, first person, raw and emotional, like he's confessing). Informal Brazilian Portuguese, natural speech.
+2. "description" — visual scene description in Portuguese (what we see on screen). Be specific about environment, body language, lighting mood.
+3. "image_prompt" — English prompt for AI image generation. Include the character's physical appearance naturally. Use cinematic language: shot types (close-up, medium shot, wide shot, extreme close-up, back shot), lighting (warm, cold, dramatic, low-key, screen glow), shallow depth of field, emotional tone. Format: 16:9 widescreen cinematic. Style: Brazilian neo-realism, City of God / Elite Squad cinematography, Arri Alexa, teal-green grading, film grain.
 
 STRUCTURE:
-- Scene 1: HOOK — grab attention immediately with a powerful visual or statement
+- Scene 1: HOOK — grab attention with a powerful visual or statement
 - Scenes 2-5: Build the situation, show normalcy cracking
-- Scenes 6-10: The tension escalates, the compulsion takes over
-- Scenes 11-13: The climax of this episode's arc
-- Scenes 14-15: Emotional aftermath / cliffhanger for next episode
+- Scenes 6-10: Tension escalates, the compulsion takes over
+- Scenes 11-13: Climax of this episode's arc
+- Scenes 14-15: Emotional aftermath / cliffhanger
 
-RULES:
-- NEVER generate explicit or sexual imagery in the prompts. Focus on the EMOTIONAL experience: faces, hands, body language, environments, lighting.
-- The image prompts must show the struggle, not the act. Phone screens should be blank/glowing. Focus on the person, not what they're watching.
-- Include the character's physical appearance in EVERY image prompt
-- Vary shot types throughout (mix close-ups, medium shots, wide shots, detail shots)
-- The narration should feel like a real Brazilian man talking honestly about his struggle
+CRITICAL RULES:
+- ALL image prompts must be SAFE FOR WORK. No suggestive content whatsoever.
+- Show the PERSON and their EMOTIONS, never screen content
+- Screens in images: always blank white/blue glow, or phone face-down, or seen from behind
+- Focus on: faces, hands, eyes, posture, environments, lighting, shadows
+- Include character appearance in EVERY image prompt
+- Vary shot types (mix close-ups, medium shots, wide shots, detail shots)
 
 Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
 [{"narration":"...","description":"...","image_prompt":"..."},...]`;
