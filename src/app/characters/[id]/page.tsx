@@ -242,6 +242,11 @@ export default function CharacterPage() {
     await loadData();
   }
 
+  // Helper: get episode number (1-indexed)
+  function getEpisodeNumber(epId: string): number {
+    return episodes.findIndex((e) => e.id === epId) + 1;
+  }
+
   // Download script (narration + description only)
   function downloadScript(ep: Episode) {
     const epShots = shotsByEp[ep.id] || [];
@@ -424,10 +429,11 @@ export default function CharacterPage() {
     setError(null);
 
     try {
+      const epNumber = activeEpForm ? getEpisodeNumber(activeEpForm) : 1;
       const res = await fetch(`/api/characters/${id}/compose-prompt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt_scene: sceneInput.trim() }),
+        body: JSON.stringify({ prompt_scene: sceneInput.trim(), episode_number: epNumber }),
       });
 
       if (!res.ok) {
@@ -496,12 +502,13 @@ export default function CharacterPage() {
 
       // Always use the extraPrompt when provided (regen flow)
       if (extraPrompt !== undefined && extraPrompt.trim()) {
+        const epNumber = getEpisodeNumber(shot.episode_id);
         const translateRes = await fetch(
           `/api/characters/${id}/compose-prompt`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt_scene: extraPrompt.trim() }),
+            body: JSON.stringify({ prompt_scene: extraPrompt.trim(), episode_number: epNumber }),
           }
         );
         if (translateRes.ok) {
