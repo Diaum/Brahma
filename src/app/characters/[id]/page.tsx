@@ -64,6 +64,35 @@ export default function CharacterPage() {
   const [newEpTitle, setNewEpTitle] = useState("");
   const [creatingEp, setCreatingEp] = useState(false);
 
+  // Editing episode title
+  const [editingEpId, setEditingEpId] = useState<string | null>(null);
+  const [editingEpTitle, setEditingEpTitle] = useState("");
+
+  function startEditEpTitle(ep: Episode) {
+    setEditingEpId(ep.id);
+    setEditingEpTitle(ep.title);
+  }
+
+  async function saveEpTitle(epId: string) {
+    if (!editingEpTitle.trim()) {
+      setEditingEpId(null);
+      return;
+    }
+    const res = await fetch(`/api/episodes/${epId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingEpTitle.trim() }),
+    });
+    if (res.ok) {
+      setEpisodes((prev) =>
+        prev.map((e) =>
+          e.id === epId ? { ...e, title: editingEpTitle.trim() } : e
+        )
+      );
+    }
+    setEditingEpId(null);
+  }
+
   // Set as cover
   async function handleSetCover(shot: Shot) {
     const res = await fetch(`/api/episodes/${shot.episode_id}`, {
@@ -1078,7 +1107,32 @@ export default function CharacterPage() {
                   <span className="text-accent font-mono text-sm font-bold">
                     EP {String(epIndex + 1).padStart(2, "0")}
                   </span>
-                  <h3 className="font-semibold">{ep.title}</h3>
+                  {editingEpId === ep.id ? (
+                    <input
+                      type="text"
+                      value={editingEpTitle}
+                      onChange={(e) => setEditingEpTitle(e.target.value)}
+                      onBlur={() => saveEpTitle(ep.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEpTitle(ep.id);
+                        if (e.key === "Escape") setEditingEpId(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                      className="bg-background border border-accent rounded-md px-2 py-1 text-sm font-semibold focus:outline-none"
+                    />
+                  ) : (
+                    <h3
+                      className="font-semibold hover:text-accent transition"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditEpTitle(ep);
+                      }}
+                      title="Clique para editar"
+                    >
+                      {ep.title}
+                    </h3>
+                  )}
                   <span className="text-xs text-muted">
                     {epShots.length} shot{epShots.length !== 1 ? "s" : ""}
                   </span>
