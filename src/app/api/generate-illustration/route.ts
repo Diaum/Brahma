@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateImage } from "@/lib/gemini-image";
 import { supabase } from "@/lib/supabase";
 
-const ILLUSTRATION_STYLE = `cartoon vector illustration in the style of Scratch AI Instagram infographics, bold thick outlines, cel-shaded flat colors, exaggerated proportions, simple rounded character design, clean background with solid gradient and simple geometric accents, social media carousel slide format, 4:5 aspect ratio, infographic style, startup illustration aesthetic, friendly approachable characters with minimal facial details, warm earthy tones for characters, educational visual storytelling. Small watermark text "@diaum_app" at the bottom center. NO realistic style, NO 3D rendering, NO photorealism, NO complex textures, NO rainbow colors unless specified`;
+const ILLUSTRATION_STYLE = `cartoon vector illustration in the style of Scratch AI Instagram infographics, bold thick outlines, cel-shaded flat colors, exaggerated proportions, simple rounded character design, clean background with solid gradient and simple geometric accents, social media carousel slide format, 4:5 aspect ratio, infographic style, startup illustration aesthetic, friendly approachable characters with minimal facial details, warm earthy tones for characters, educational visual storytelling. Small watermark text "diaum.app" at the bottom center. NO realistic style, NO 3D rendering, NO photorealism, NO complex textures, NO rainbow colors unless specified`;
 
 export async function POST(request: Request) {
   try {

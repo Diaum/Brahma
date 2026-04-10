@@ -2,7 +2,7 @@
 
 export const SLIDE_W = 1080;
 export const SLIDE_H = 1350;
-export const WATERMARK = "@diaum_app";
+export const WATERMARK = "diaum.app";
 
 export type CoverLayout = "bottom-gradient" | "top-strip" | "magazine";
 
