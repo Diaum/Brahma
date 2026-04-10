@@ -771,6 +771,7 @@ export default function CharacterPage() {
 
   // --- Generate image ---
   async function handleGenerate(shot: Shot, extraPrompt?: string) {
+    console.log("[handleGenerate] called for shot", shot.id, "status:", shot.status);
     setGeneratingId(shot.id);
     setRegenShot(null);
     setRegenExtra("");
@@ -778,6 +779,7 @@ export default function CharacterPage() {
 
     try {
       let prompt = shot.prompt_full || shot.prompt_scene;
+      console.log("[handleGenerate] prompt:", prompt?.slice(0, 100));
 
       // Always use the extraPrompt when provided (regen flow)
       if (extraPrompt !== undefined && extraPrompt.trim()) {
@@ -826,7 +828,22 @@ export default function CharacterPage() {
         throw new Error(data.error || "Erro ao gerar imagem");
       }
 
-      await loadData();
+      // Get the updated shot from the response and merge into local state
+      const updatedShot = await res.json();
+      setShotsByEp((prev) => ({
+        ...prev,
+        [shot.episode_id]: (prev[shot.episode_id] || []).map((s) =>
+          s.id === shot.id ? { ...s, ...updatedShot } : s
+        ),
+      }));
+
+      // Bump approved count if status changed
+      if (updatedShot.status === "generated" || updatedShot.status === "approved") {
+        const summaryRes = await fetch(`/api/characters/${id}/shots-summary`);
+        if (summaryRes.ok) {
+          setShotsSummary(await summaryRes.json());
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
