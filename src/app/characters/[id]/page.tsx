@@ -329,10 +329,25 @@ export default function CharacterPage() {
         body: JSON.stringify({ script: fullScript }),
       });
 
+      // Refetch shots for this episode (lazy loader caches old empty result)
+      const epIdToRefresh = scriptGenEp;
+      const shotsRes = await fetch(
+        `/api/characters/${id}/episodes/${epIdToRefresh}/shots`
+      );
+      if (shotsRes.ok) {
+        const freshShots = await shotsRes.json();
+        setShotsByEp((prev) => ({ ...prev, [epIdToRefresh]: freshShots }));
+      }
+
       setScriptGenEp(null);
       setGeneratedScenes([]);
       setReviewingScript(false);
-      await loadData();
+
+      // Refresh summary too (counts on episode cards)
+      const summaryRes = await fetch(`/api/characters/${id}/shots-summary`);
+      if (summaryRes.ok) {
+        setShotsSummary(await summaryRes.json());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
@@ -734,6 +749,14 @@ export default function CharacterPage() {
       setShotsByEp((prev) => ({
         ...prev,
         [activeEpForm]: [...(prev[activeEpForm] || []), newShot],
+      }));
+      // Bump summary count
+      setShotsSummary((prev) => ({
+        ...prev,
+        [activeEpForm]: {
+          total: (prev[activeEpForm]?.total || 0) + 1,
+          approved: prev[activeEpForm]?.approved || 0,
+        },
       }));
 
       setSceneInput(character ? `${character.name} esta ` : "");
