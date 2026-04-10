@@ -231,41 +231,62 @@ export async function renderCoverSlide(
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
     } else if (layout === "magazine") {
-      // Style 3: split-half — image on top 60%, solid black bottom 40% with text
-      // Image area is full 100% but text lives on bottom black strip
-      const stripTop = Math.round(SLIDE_H * 0.62);
-      const stripHeight = SLIDE_H - stripTop;
-
-      // Bottom black strip
+      // Style 3: editorial magazine cover with giant quote mark and serif title
+      // Completely override the image — use solid dark background
       ctx.fillStyle = "#0a0a0a";
-      ctx.fillRect(0, stripTop, SLIDE_W, stripHeight);
+      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
 
-      // Small accent marker above strip
+      const marginX = 110;
+
+      // Giant decorative quote mark (yellow, translucent)
       ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(80, stripTop + 50, 60, 5);
-
+      ctx.globalAlpha = 0.15;
+      ctx.font = "900 700px Georgia, serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
+      ctx.fillText("\u201C", 40, 560);
+      ctx.globalAlpha = 1;
 
-      // Title
+      // Vertical yellow bar on the left
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(60, 280, 10, 720);
+
+      // Small label at top
       ctx.fillStyle = "#ffffff";
-      const titleFontSize = 84;
-      const titleLineH = 96;
-      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
-      const titleStartY = stripTop + 140;
+      ctx.globalAlpha = 0.5;
+      ctx.font = "700 26px system-ui, sans-serif";
+      ctx.fillText("— MAGAZINE —", marginX, 220);
+      ctx.globalAlpha = 1;
+
+      // Title in big serif italic
+      ctx.fillStyle = "#ffffff";
+      const titleFontSize = 96;
+      const titleLineH = 110;
+      ctx.font = `italic 700 ${titleFontSize}px Georgia, serif`;
+      const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX - 100);
+      const titleStartY = 380;
       titleLines.forEach((line, i) => {
-        ctx.fillText(line, 80, titleStartY + i * titleLineH);
+        ctx.fillText(line, marginX, titleStartY + i * titleLineH);
       });
 
-      // Subtitle
+      // Yellow dots separator
+      const afterTitleY = titleStartY + titleLines.length * titleLineH + 60;
+      ctx.fillStyle = "#fbbf24";
+      [0, 32, 64].forEach((offset) => {
+        ctx.beginPath();
+        ctx.arc(marginX + 8 + offset, afterTitleY, 8, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Subtitle in serif
       if (slide.subtitle) {
-        ctx.font = "500 36px system-ui, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "400 42px Georgia, serif";
         ctx.globalAlpha = 0.85;
-        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
-        const subStart = titleStartY + titleLines.length * titleLineH + 20;
+        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - marginX - 100);
+        const subStart = afterTitleY + 80;
         subLines.forEach((line, i) => {
-          ctx.fillText(line, 80, subStart + i * 48);
+          ctx.fillText(line, marginX, subStart + i * 56);
         });
         ctx.globalAlpha = 1;
       }
@@ -274,24 +295,25 @@ export async function renderCoverSlide(
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, SLIDE_W, stripH);
 
-      // Accent line
-      ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(80, stripH - 8, 120, 6);
-
-      // Title left-aligned, white
+      // Title left-aligned, white — anchored to bottom of strip
       ctx.fillStyle = "#ffffff";
       ctx.font = "900 110px system-ui, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
       const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
       const titleLineH = 120;
-      const totalTitleH = titleLines.length * titleLineH;
-      const startY = (stripH - 40 - totalTitleH) / 2 + 90;
+      // Bottom baseline of last line sits at stripH - 70 (gives ~50px padding below)
+      const lastLineY = stripH - 70;
+      const firstLineY = lastLineY - (titleLines.length - 1) * titleLineH;
       titleLines.forEach((line, i) => {
-        ctx.fillText(line, 80, startY + i * titleLineH);
+        ctx.fillText(line, 80, firstLineY + i * titleLineH);
       });
 
-      // Subtitle below the strip
+      // Accent line just below the title
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(80, stripH - 20, 120, 6);
+
+      // Subtitle below the strip — pushed down a bit for more breathing room
       if (slide.subtitle) {
         ctx.fillStyle = "#ffffff";
         ctx.font = "500 42px system-ui, sans-serif";
@@ -300,7 +322,7 @@ export async function renderCoverSlide(
         ctx.shadowOffsetY = 3;
         const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
         subLines.forEach((line, i) => {
-          ctx.fillText(line, 80, stripH + 90 + i * 54);
+          ctx.fillText(line, 80, stripH + 130 + i * 54);
         });
         ctx.shadowColor = "transparent";
         ctx.shadowBlur = 0;
@@ -377,61 +399,69 @@ export async function renderTextSlide(
   ctx.textBaseline = "alphabetic";
 
   if (layout === "magazine") {
-    // Style 3: editorial magazine — big number/accent, title below, body after
+    // Style 3: giant quote mark + serif typography with vertical yellow bar
+    // Completely distinct from centered and top-strip
+
+    // Reset: fill solid background (ignore image for this layout — keep it clean)
+    ctx.fillStyle = slide.bgColor || "#0a0a0a";
+    ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+
+    const marginX = 110;
+    const textColor = slide.textColor || "#ffffff";
+
+    // Giant decorative quote mark (pale background)
+    ctx.fillStyle = "#fbbf24";
+    ctx.globalAlpha = 0.15;
+    ctx.font = "900 700px Georgia, serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-
-    // If there's an image, show it on top 50% with overlay
-    if (hasImage) {
-      const imgBottomY = Math.round(SLIDE_H * 0.5);
-      // Solid dark strip below image
-      ctx.fillStyle = "#0a0a0a";
-      ctx.fillRect(0, imgBottomY, SLIDE_W, SLIDE_H - imgBottomY);
-      // Thin accent line between image and text
-      ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(0, imgBottomY, SLIDE_W, 4);
-    }
-
-    // Content area: if image, below split; else full
-    const contentTop = hasImage ? Math.round(SLIDE_H * 0.5) + 80 : 220;
-    const marginX = 80;
-
-    // Accent marker
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillRect(marginX, contentTop, 60, 5);
-
-    // Editorial label (small uppercase)
-    ctx.fillStyle = slide.textColor || "#ffffff";
-    ctx.font = "700 28px system-ui, sans-serif";
-    ctx.globalAlpha = 0.6;
-    ctx.fillText("EDITORIAL", marginX, contentTop + 55);
+    ctx.fillText("\u201C", 40, 560);
     ctx.globalAlpha = 1;
 
-    // Title
-    const titleFontSize = hasImage ? 68 : 88;
-    const titleLineH = hasImage ? 80 : 102;
-    ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX * 2);
-    const titleStartY = contentTop + 100;
+    // Vertical yellow bar on the left
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(60, 360, 10, 600);
+
+    // Small label at top
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.5;
+    ctx.font = "700 26px system-ui, sans-serif";
+    ctx.letterSpacing = "4px";
+    ctx.fillText("— REFLEXAO —", marginX, 260);
+    ctx.globalAlpha = 1;
+
+    // Title in big serif italic
+    ctx.fillStyle = textColor;
+    const titleFontSize = 84;
+    const titleLineH = 100;
+    ctx.font = `italic 700 ${titleFontSize}px Georgia, serif`;
+    const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX - 100);
+    const titleStartY = 420;
     titleLines.forEach((line, i) => {
       ctx.fillText(line, marginX, titleStartY + i * titleLineH);
     });
 
-    // Separator line
-    const afterTitleY = titleStartY + titleLines.length * titleLineH + 30;
-    ctx.fillStyle = slide.textColor || "#ffffff";
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(marginX, afterTitleY, 180, 2);
-    ctx.globalAlpha = 1;
+    // Double separator (yellow dots)
+    const afterTitleY = titleStartY + titleLines.length * titleLineH + 60;
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath();
+    ctx.arc(marginX + 8, afterTitleY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(marginX + 40, afterTitleY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(marginX + 72, afterTitleY, 8, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Body
+    // Body in regular sans-serif
     if (slide.body) {
-      ctx.fillStyle = slide.textColor || "#ffffff";
-      ctx.font = "400 38px Georgia, serif";
-      ctx.globalAlpha = 0.9;
-      const bodyLines = wrapText(ctx, slide.body, SLIDE_W - marginX * 2);
-      const bodyStart = afterTitleY + 50;
-      const bodyLineH = 52;
+      ctx.fillStyle = textColor;
+      ctx.font = "400 40px system-ui, sans-serif";
+      ctx.globalAlpha = 0.85;
+      const bodyLines = wrapText(ctx, slide.body, SLIDE_W - marginX - 100);
+      const bodyStart = afterTitleY + 80;
+      const bodyLineH = 56;
       bodyLines.forEach((line, i) => {
         ctx.fillText(line, marginX, bodyStart + i * bodyLineH);
       });
@@ -442,22 +472,22 @@ export async function renderTextSlide(
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, SLIDE_W, stripH);
 
-    // Accent line
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillRect(80, stripH - 8, 120, 6);
-
-    // Title in strip
+    // Title in strip — anchored to bottom of strip
     ctx.fillStyle = slide.textColor || "#ffffff";
     ctx.font = "900 100px system-ui, sans-serif";
     const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
     const titleLineH = 110;
-    const totalTitleH = titleLines.length * titleLineH;
-    const titleStartY = (stripH - 40 - totalTitleH) / 2 + 80;
+    const lastLineY = stripH - 70;
+    const firstLineY = lastLineY - (titleLines.length - 1) * titleLineH;
     titleLines.forEach((line, i) => {
-      ctx.fillText(line, 80, titleStartY + i * titleLineH);
+      ctx.fillText(line, 80, firstLineY + i * titleLineH);
     });
 
-    // Body below strip (over image if present)
+    // Accent line just below the title
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(80, stripH - 20, 120, 6);
+
+    // Body below strip (pushed down for breathing room)
     if (slide.body) {
       ctx.fillStyle = slide.textColor || "#ffffff";
       ctx.font = "500 44px system-ui, sans-serif";
@@ -469,7 +499,7 @@ export async function renderTextSlide(
       const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
       const bodyLineH = 60;
       bodyLines.forEach((line, i) => {
-        ctx.fillText(line, 80, stripH + 90 + i * bodyLineH);
+        ctx.fillText(line, 80, stripH + 130 + i * bodyLineH);
       });
     }
   } else {
