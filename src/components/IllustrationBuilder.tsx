@@ -16,7 +16,10 @@ interface IllustrationBuilderProps {
   onClose: () => void;
   characterId: string;
   characterName: string;
+  onSaved?: () => void;
 }
+
+const CTA_IMAGE_URL = "/diaum-logo.png";
 
 const COLOR_PALETTES = [
   { label: "Verde", value: "dark green gradient background with teal accents" },
@@ -30,6 +33,7 @@ export function IllustrationBuilder({
   onClose,
   characterId,
   characterName,
+  onSaved,
 }: IllustrationBuilderProps) {
   // Step 1: input
   const [inputText, setInputText] = useState("");
@@ -41,6 +45,16 @@ export function IllustrationBuilder({
   const [slides, setSlides] = useState<IllustrationSlide[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
+
+  // CTA slide (5th, fixed)
+  const ctaSlide: IllustrationSlide = {
+    headline: "DIAUM",
+    subtext: "Um app que te ajuda a combater seu vicio em conteudo adulto de forma anonima e acolhedora.",
+    scene: "",
+    image_url: CTA_IMAGE_URL,
+  };
 
   async function handlePlan() {
     if (inputText.trim().length < 20) {
@@ -123,19 +137,45 @@ export function IllustrationBuilder({
     }
   }
 
+  // All slides including CTA at the end
+  const allSlides = [...slides, ctaSlide];
+
+  async function saveToDb() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/characters/${characterId}/carousels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slides: allSlides,
+          name: `${characterName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}-ilustracao-${Date.now().toString(36)}`,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedName(data.name);
+        setTimeout(() => setSavedName(null), 3000);
+        onSaved?.();
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function downloadAll() {
-    const generated = slides.filter((s) => s.image_url);
-    if (generated.length === 0) return;
+    if (slides.length === 0) return;
     setDownloading(true);
 
     try {
       const zip = new JSZip();
+
+      // Download the 4 illustration slides
       for (let i = 0; i < slides.length; i++) {
         if (slides[i].image_url) {
           try {
-            const res = await fetch(
-              `/api/proxy-image?url=${encodeURIComponent(slides[i].image_url!)}`
-            );
+            const url = slides[i].image_url!;
+            const fetchUrl = url.startsWith("/") ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const res = await fetch(fetchUrl);
             if (res.ok) {
               const blob = await res.blob();
               zip.file(`ilustracao-${String(i + 1).padStart(2, "0")}.png`, blob);
@@ -144,6 +184,17 @@ export function IllustrationBuilder({
             // skip
           }
         }
+      }
+
+      // Download CTA slide (local image)
+      try {
+        const ctaRes = await fetch(CTA_IMAGE_URL);
+        if (ctaRes.ok) {
+          const blob = await ctaRes.blob();
+          zip.file(`ilustracao-${String(slides.length + 1).padStart(2, "0")}-cta.png`, blob);
+        }
+      } catch {
+        // skip
       }
 
       const content = await zip.generateAsync({ type: "blob" });
@@ -255,48 +306,56 @@ export function IllustrationBuilder({
             <>
               {/* Left: slide list */}
               <div className="w-48 shrink-0 border-r border-border overflow-y-auto p-3 space-y-2">
-                {slides.map((s, i) => (
-                  <div
-                    key={i}
-                    onClick={() => setActiveIdx(i)}
-                    className={`rounded-lg border-2 cursor-pointer transition overflow-hidden ${
-                      i === activeIdx
-                        ? "border-accent"
-                        : "border-border hover:border-muted"
-                    }`}
-                  >
-                    <div className="aspect-[4/5] bg-background flex items-center justify-center text-muted">
-                      {s.image_url ? (
-                        <img
-                          src={s.image_url}
-                          alt={s.headline}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : s.generating ? (
-                        <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="text-[10px] p-2 text-center line-clamp-3">
-                          {s.headline || `Slide ${i + 1}`}
+                {allSlides.map((s, i) => {
+                  const isCta = i === slides.length;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => setActiveIdx(i)}
+                      className={`rounded-lg border-2 cursor-pointer transition overflow-hidden relative ${
+                        i === activeIdx
+                          ? "border-accent"
+                          : "border-border hover:border-muted"
+                      }`}
+                    >
+                      <div className="aspect-[4/5] bg-background flex items-center justify-center text-muted">
+                        {s.image_url ? (
+                          <img
+                            src={s.image_url}
+                            alt={s.headline}
+                            className={`w-full h-full object-cover ${isCta ? "bg-white" : ""}`}
+                          />
+                        ) : s.generating ? (
+                          <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <span className="text-[10px] p-2 text-center line-clamp-3">
+                            {s.headline || `Slide ${i + 1}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-1.5 bg-card flex items-center justify-between">
+                        <span className="text-[10px] text-muted">
+                          {i + 1}/{allSlides.length}
                         </span>
-                      )}
+                        {isCta && (
+                          <span className="text-[9px] text-accent font-bold">CTA</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="p-1.5 bg-card">
-                      <span className="text-[10px] text-muted">{i + 1}/4</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Center: preview */}
               <div className="flex-1 overflow-y-auto bg-background/30 flex items-center justify-center p-6">
-                {slides[activeIdx]?.image_url ? (
+                {allSlides[activeIdx]?.image_url ? (
                   <img
-                    src={slides[activeIdx].image_url}
-                    alt={slides[activeIdx].headline}
-                    className="max-h-[70vh] w-auto rounded-lg shadow-2xl"
+                    src={allSlides[activeIdx].image_url}
+                    alt={allSlides[activeIdx].headline}
+                    className={`max-h-[70vh] w-auto rounded-lg shadow-2xl ${activeIdx === slides.length ? "bg-white" : ""}`}
                     style={{ aspectRatio: "4/5" }}
                   />
-                ) : slides[activeIdx]?.generating ? (
+                ) : allSlides[activeIdx]?.generating ? (
                   <div className="flex flex-col items-center gap-4 text-muted">
                     <div className="w-10 h-10 border-3 border-accent border-t-transparent rounded-full animate-spin" />
                     <span>Gerando ilustracao...</span>
@@ -311,7 +370,19 @@ export function IllustrationBuilder({
 
               {/* Right: editor */}
               <div className="w-80 shrink-0 border-l border-border overflow-y-auto p-5 space-y-4">
-                {slides[activeIdx] && (
+                {activeIdx === slides.length ? (
+                  /* CTA slide info */
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                      CTA (final)
+                    </h3>
+                    <div className="bg-accent/10 border border-accent/30 rounded-lg p-3">
+                      <p className="text-xs text-accent">
+                        Slide fixo com o logo e CTA do Diaum. Incluido automaticamente no download.
+                      </p>
+                    </div>
+                  </div>
+                ) : slides[activeIdx] ? (
                   <>
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
                       Slide {activeIdx + 1}
@@ -387,7 +458,7 @@ export function IllustrationBuilder({
                           : "🎨 Gerar Ilustracao"}
                     </button>
                   </>
-                )}
+                ) : null}
               </div>
             </>
           )}
@@ -395,11 +466,15 @@ export function IllustrationBuilder({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between">
-          <p className="text-xs text-muted">
-            {hasSlides
-              ? `${generatedCount} de ${slides.length} ilustracoes geradas`
-              : "Cole um texto para comecar"}
-          </p>
+          <div className="text-xs text-muted">
+            {savedName ? (
+              <span className="text-green-400">✓ Salvo como {savedName}</span>
+            ) : hasSlides ? (
+              `${generatedCount} de ${slides.length} ilustracoes + CTA`
+            ) : (
+              "Cole um texto para comecar"
+            )}
+          </div>
           <div className="flex gap-3">
             <button onClick={handleClose} className="text-muted hover:text-foreground text-sm px-3 cursor-pointer">
               Fechar
@@ -424,13 +499,22 @@ export function IllustrationBuilder({
                   </button>
                 )}
                 {generatedCount > 0 && (
-                  <button
-                    onClick={downloadAll}
-                    disabled={downloading}
-                    className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
-                  >
-                    {downloading ? "Baixando..." : "↓ Baixar (.zip)"}
-                  </button>
+                  <>
+                    <button
+                      onClick={saveToDb}
+                      disabled={saving}
+                      className="bg-card border border-border text-foreground font-medium px-5 py-2 rounded-lg hover:bg-card-hover transition disabled:opacity-50 cursor-pointer text-sm"
+                    >
+                      {saving ? "Salvando..." : "Salvar"}
+                    </button>
+                    <button
+                      onClick={downloadAll}
+                      disabled={downloading}
+                      className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
+                    >
+                      {downloading ? "Baixando..." : "↓ Baixar (.zip)"}
+                    </button>
+                  </>
                 )}
               </>
             )}

@@ -2592,6 +2592,7 @@ export default function CharacterPage() {
         onClose={() => setShowIllustrations(false)}
         characterId={id}
         characterName={character?.name || "personagem"}
+        onSaved={loadSavedCarousels}
       />
 
       {/* Carousel Builder */}
