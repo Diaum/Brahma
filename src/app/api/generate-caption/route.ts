@@ -54,7 +54,7 @@ ${source_url ? `
 📰 Fonte: ${source_url}` : `
 10. NAO inclua nenhuma linha de fonte/referencia`}
 
-11. Termine com 8-12 hashtags em PORTUGUES em linha separada. SEMPRE comece com #diaum #diaumapp e depois adicione relacionadas ao tema em portugues (ex: #saudemasculina #bemestar #vicodigital #habitossaudaveis #saudedohomem #vidadigital #autocuidado #saudemental)
+11. Termine com 8-12 hashtags em PORTUGUES em linha separada. SEMPRE comece com #diaum #diaumapp #saudemasculina (obrigatorias) e depois adicione relacionadas ao tema em portugues (ex: #bemestar #vicodigital #habitossaudaveis #saudedohomem #vidadigital #autocuidado #saudemental)
 
 FORMATO DA RESPOSTA (apenas o texto, nada mais):
 [frase de impacto]
