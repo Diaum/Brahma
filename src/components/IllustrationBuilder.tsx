@@ -60,23 +60,26 @@ export function IllustrationBuilder({
     headline: DEFAULT_CTA_HEADLINE,
     subtext: DEFAULT_CTA_BODY,
     scene: "",
-    image_url: "__CTA__", // sentinel value — rendered via canvas
+    image_url: "__CTA__",
   };
-  const ctaCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [ctaRendered, setCtaRendered] = useState(false);
+  const ctaThumbRef = useRef<HTMLCanvasElement>(null);
+  const ctaPreviewRef = useRef<HTMLCanvasElement>(null);
 
-  // Render CTA canvas when slides are loaded
+  // Render CTA on both canvases
   useEffect(() => {
-    if (slides.length === 0 || ctaRendered) return;
-    const canvas = ctaCanvasRef.current;
-    if (!canvas) return;
+    if (slides.length === 0) return;
     const ctaData: CtaSlide = {
       type: "cta",
       headline: DEFAULT_CTA_HEADLINE,
       body: DEFAULT_CTA_BODY,
     };
-    renderCtaSlide(canvas, ctaData).then(() => setCtaRendered(true));
-  }, [slides, ctaRendered]);
+    if (ctaThumbRef.current) {
+      renderCtaSlide(ctaThumbRef.current, ctaData).catch(() => {});
+    }
+    if (ctaPreviewRef.current) {
+      renderCtaSlide(ctaPreviewRef.current, ctaData).catch(() => {});
+    }
+  }, [slides, activeIdx]);
 
   async function handlePlan() {
     if (inputText.trim().length < 20) {
@@ -349,7 +352,7 @@ export function IllustrationBuilder({
                       <div className="aspect-[4/5] bg-background flex items-center justify-center text-muted">
                         {isCta ? (
                           <canvas
-                            ref={i === slides.length ? ctaCanvasRef : undefined}
+                            ref={ctaThumbRef}
                             className="w-full h-full object-cover"
                             style={{ aspectRatio: "4/5" }}
                           />
@@ -385,7 +388,7 @@ export function IllustrationBuilder({
                 {activeIdx === slides.length ? (
                   /* CTA preview via canvas */
                   <canvas
-                    ref={ctaCanvasRef}
+                    ref={ctaPreviewRef}
                     className="max-h-[70vh] w-auto rounded-lg shadow-2xl"
                     style={{ aspectRatio: "4/5" }}
                   />
