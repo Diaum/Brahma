@@ -21,15 +21,49 @@ export interface TextSlide {
 
 export type Slide = CoverSlide | TextSlide;
 
-// Load image as HTMLImageElement with CORS support
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
+// Load image via fetch → blob → object URL to bypass CORS taint
+async function loadImage(url: string): Promise<HTMLImageElement> {
+  // Strip cache-buster query to avoid duplicate fetches
+  const cleanUrl = url.split("?")[0];
+
+  try {
+    const res = await fetch(cleanUrl, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = (e) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(e);
+      };
+      img.src = objectUrl;
+    });
+  } catch (err) {
+    // Fallback: try proxy via our API
+    try {
+      const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`);
+      if (!proxyRes.ok) throw new Error(`Proxy HTTP ${proxyRes.status}`);
+      const blob = await proxyRes.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+    } catch (proxyErr) {
+      throw err || proxyErr;
+    }
+  }
 }
 
 // Word wrap for canvas text
