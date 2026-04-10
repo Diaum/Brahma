@@ -5,6 +5,28 @@ import { useParams } from "next/navigation";
 import JSZip from "jszip";
 import { Button } from "@/components/ui";
 import { CarouselBuilder } from "@/components/CarouselBuilder";
+import { renderSlide, Slide } from "@/lib/carousel-render";
+
+// Small canvas preview of the carousel cover (first slide)
+function CarouselCoverThumbnail({ slides }: { slides: unknown[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const cover = slides[0] as Slide | undefined;
+    if (!cover) return;
+    renderSlide(canvas, cover).catch(() => {});
+  }, [slides]);
+
+  return (
+    <canvas
+      ref={ref}
+      className="w-full h-full object-cover rounded-md bg-black"
+      style={{ aspectRatio: "4/5" }}
+    />
+  );
+}
 
 interface Character {
   id: string;
@@ -2518,26 +2540,28 @@ export default function CharacterPage() {
                   {savedCarousels.map((car) => (
                     <div
                       key={car.id}
-                      className="group bg-background border border-border rounded-lg p-3 hover:border-accent/50 transition relative"
+                      className="group bg-background border border-border rounded-lg overflow-hidden hover:border-accent/50 transition relative"
                     >
-                      <div className="text-xs font-semibold text-foreground truncate mb-1">
-                        {car.name}
+                      <div className="p-1.5">
+                        <CarouselCoverThumbnail slides={car.slides} />
                       </div>
-                      <div className="text-[10px] text-muted">
-                        {car.slides.length} slides
-                      </div>
-                      <div className="text-[10px] text-muted">
-                        {new Date(car.created_at).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <div className="px-3 pb-2 pt-1">
+                        <div className="text-xs font-semibold text-foreground truncate mb-0.5">
+                          {car.name}
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-muted">
+                          <span>{car.slides.length} slides</span>
+                          <span>
+                            {new Date(car.created_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                            })}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => handleDeleteCarousel(car.id)}
-                        className="absolute top-2 right-2 text-muted hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        className="absolute top-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600 opacity-0 group-hover:opacity-100 transition cursor-pointer"
                       >
                         ✕
                       </button>
