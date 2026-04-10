@@ -23,49 +23,31 @@ export interface TextSlide {
 
 export type Slide = CoverSlide | TextSlide;
 
-// Load image via fetch → blob → object URL to bypass CORS taint
+// Load image via proxy → blob → object URL (bypasses CORS)
 async function loadImage(url: string): Promise<HTMLImageElement> {
   // Strip cache-buster query to avoid duplicate fetches
   const cleanUrl = url.split("?")[0];
 
-  try {
-    const res = await fetch(cleanUrl, { mode: "cors" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(img);
-      };
-      img.onerror = (e) => {
-        URL.revokeObjectURL(objectUrl);
-        reject(e);
-      };
-      img.src = objectUrl;
-    });
-  } catch (err) {
-    // Fallback: try proxy via our API
-    try {
-      const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`);
-      if (!proxyRes.ok) throw new Error(`Proxy HTTP ${proxyRes.status}`);
-      const blob = await proxyRes.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          URL.revokeObjectURL(objectUrl);
-          resolve(img);
-        };
-        img.onerror = reject;
-        img.src = objectUrl;
-      });
-    } catch (proxyErr) {
-      throw err || proxyErr;
-    }
+  // Always use proxy (avoids CORS issues with Supabase public URLs)
+  const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`);
+  if (!proxyRes.ok) {
+    throw new Error(`Proxy HTTP ${proxyRes.status}`);
   }
+  const blob = await proxyRes.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(e);
+    };
+    img.src = objectUrl;
+  });
 }
 
 // Word wrap for canvas text
@@ -159,29 +141,38 @@ export async function renderCoverSlide(
     ctx.fillStyle = gradient;
     ctx.fillRect(0, SLIDE_H * 0.5, SLIDE_W, SLIDE_H * 0.5);
 
-    // Title
+    // Title — extra large and bold
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 72px system-ui, sans-serif";
+    ctx.font = "900 120px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
-    const titleLineH = 80;
-    const startY = SLIDE_H - 280 - (titleLines.length - 1) * titleLineH;
+    ctx.shadowColor = "rgba(0,0,0,0.7)";
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 4;
+    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 100);
+    const titleLineH = 130;
+    const startY = SLIDE_H - 340 - (titleLines.length - 1) * titleLineH;
     titleLines.forEach((line, i) => {
       ctx.fillText(line, SLIDE_W / 2, startY + i * titleLineH);
     });
 
     // Subtitle
     if (slide.subtitle) {
-      ctx.font = "400 36px system-ui, sans-serif";
-      ctx.globalAlpha = 0.9;
-      const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 200);
-      const subStartY = startY + titleLines.length * titleLineH + 20;
+      ctx.font = "500 44px system-ui, sans-serif";
+      ctx.shadowBlur = 15;
+      ctx.globalAlpha = 0.95;
+      const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
+      const subStartY = startY + titleLines.length * titleLineH + 30;
       subLines.forEach((line, i) => {
-        ctx.fillText(line, SLIDE_W / 2, subStartY + i * 44);
+        ctx.fillText(line, SLIDE_W / 2, subStartY + i * 54);
       });
       ctx.globalAlpha = 1;
     }
+
+    // Reset shadow before watermark
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
   }
 
   drawWatermark(ctx, "#ffffff");
