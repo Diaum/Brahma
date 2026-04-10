@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import JSZip from "jszip";
 import { Button } from "@/components/ui";
+import { CarouselBuilder } from "@/components/CarouselBuilder";
 
 interface Character {
   id: string;
@@ -398,6 +399,53 @@ export default function CharacterPage() {
     if (!url) return "";
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}t=${Date.now()}`;
+  }
+
+  // Carousel builder
+  const [showCarousel, setShowCarousel] = useState(false);
+  const [carouselShots, setCarouselShots] = useState<
+    Array<{ id: string; image_url: string; prompt_scene: string }>
+  >([]);
+  const [loadingCarouselShots, setLoadingCarouselShots] = useState(false);
+
+  async function openCarousel() {
+    setLoadingCarouselShots(true);
+    try {
+      // Load all shots from all episodes (only the ones not yet in memory)
+      const allEpIds = episodes.map((e) => e.id);
+      const shotsMap: Record<string, Shot[]> = { ...shotsByEp };
+
+      await Promise.all(
+        allEpIds.map(async (epId) => {
+          if (!shotsMap[epId]) {
+            const res = await fetch(
+              `/api/characters/${id}/episodes/${epId}/shots`
+            );
+            if (res.ok) shotsMap[epId] = await res.json();
+          }
+        })
+      );
+      setShotsByEp(shotsMap);
+
+      // Collect all approved/animated shots with images
+      const available = Object.values(shotsMap)
+        .flat()
+        .filter(
+          (s) =>
+            s.image_url &&
+            (s.status === "approved" || s.status === "animated" || s.status === "generated")
+        )
+        .map((s) => ({
+          id: s.id,
+          image_url: s.image_url!,
+          prompt_scene: s.prompt_scene || "",
+        }));
+
+      setCarouselShots(available);
+      setShowCarousel(true);
+    } finally {
+      setLoadingCarouselShots(false);
+    }
   }
 
   // Download all assets as ZIP
@@ -1260,8 +1308,16 @@ export default function CharacterPage() {
 
       {/* Main — Episodes + Shots */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-        {/* Top bar with download all */}
-        <div className="flex justify-end">
+        {/* Top bar with actions */}
+        <div className="flex justify-end gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={openCarousel}
+            disabled={loadingCarouselShots || episodes.length === 0}
+          >
+            {loadingCarouselShots ? "Carregando..." : "📸 Criar Carrossel"}
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -2373,6 +2429,14 @@ export default function CharacterPage() {
           </div>
         </div>
       )}
+
+      {/* Carousel Builder */}
+      <CarouselBuilder
+        open={showCarousel}
+        onClose={() => setShowCarousel(false)}
+        characterName={character?.name || "personagem"}
+        availableShots={carouselShots}
+      />
     </div>
   );
 }
