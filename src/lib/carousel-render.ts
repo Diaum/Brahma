@@ -4,7 +4,7 @@ export const SLIDE_W = 1080;
 export const SLIDE_H = 1350;
 export const WATERMARK = "@diaum_app";
 
-export type CoverLayout = "bottom-gradient" | "top-strip" | "centered-card";
+export type CoverLayout = "bottom-gradient" | "top-strip" | "magazine";
 
 export interface CoverSlide {
   type: "cover";
@@ -14,7 +14,7 @@ export interface CoverSlide {
   layout?: CoverLayout;
 }
 
-export type TextLayout = "centered" | "top-strip" | "centered-card";
+export type TextLayout = "centered" | "top-strip" | "magazine";
 
 export interface TextSlide {
   type: "text";
@@ -230,73 +230,42 @@ export async function renderCoverSlide(
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
-    } else if (layout === "centered-card") {
-      // Style 3: centered card with title, subtitle and accent line
-      const cardW = SLIDE_W - 160;
-      const padH = 70;
-      const padV = 80;
+    } else if (layout === "magazine") {
+      // Style 3: split-half — image on top 60%, solid black bottom 40% with text
+      // Image area is full 100% but text lives on bottom black strip
+      const stripTop = Math.round(SLIDE_H * 0.62);
+      const stripHeight = SLIDE_H - stripTop;
 
-      ctx.textAlign = "center";
-      ctx.textBaseline = "alphabetic";
+      // Bottom black strip
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, stripTop, SLIDE_W, stripHeight);
 
-      // Measure title
-      const titleFontSize = 96;
-      const titleLineH = 108;
-      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-      const titleLines = wrapText(ctx, slide.title, cardW - padH * 2);
-      const titleTotalH = titleLines.length * titleLineH;
-
-      // Measure subtitle
-      const subLineH = 52;
-      let subLines: string[] = [];
-      if (slide.subtitle) {
-        ctx.font = "500 40px system-ui, sans-serif";
-        subLines = wrapText(ctx, slide.subtitle, cardW - padH * 2);
-      }
-      const subTotalH = subLines.length * subLineH;
-      const gap = subLines.length > 0 ? 30 : 0;
-      const accentH = 8;
-      const accentGap = 30;
-
-      const cardH = padV * 2 + titleTotalH + gap + subTotalH + accentH + accentGap;
-      const cardX = (SLIDE_W - cardW) / 2;
-      const cardY = (SLIDE_H - cardH) / 2 - 40;
-
-      // Darken background image slightly around the card
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
-
-      // Card with subtle background + border
-      ctx.fillStyle = "rgba(0,0,0,0.78)";
-      ctx.beginPath();
-      const radius = 24;
-      ctx.moveTo(cardX + radius, cardY);
-      ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
-      ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
-      ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
-      ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
-      ctx.closePath();
-      ctx.fill();
-
-      // Accent line at top of card
+      // Small accent marker above strip
       ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(cardX + (cardW - 100) / 2, cardY + padV - 20, 100, accentH);
+      ctx.fillRect(80, stripTop + 50, 60, 5);
+
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
 
       // Title
       ctx.fillStyle = "#ffffff";
+      const titleFontSize = 84;
+      const titleLineH = 96;
       ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-      const titleStartY = cardY + padV + accentGap;
+      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+      const titleStartY = stripTop + 140;
       titleLines.forEach((line, i) => {
-        ctx.fillText(line, SLIDE_W / 2, titleStartY + (i + 1) * titleLineH - 20);
+        ctx.fillText(line, 80, titleStartY + i * titleLineH);
       });
 
       // Subtitle
       if (slide.subtitle) {
-        ctx.font = "500 40px system-ui, sans-serif";
-        ctx.globalAlpha = 0.9;
-        const subStart = titleStartY + titleTotalH + gap;
+        ctx.font = "500 36px system-ui, sans-serif";
+        ctx.globalAlpha = 0.85;
+        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
+        const subStart = titleStartY + titleLines.length * titleLineH + 20;
         subLines.forEach((line, i) => {
-          ctx.fillText(line, SLIDE_W / 2, subStart + (i + 1) * subLineH - 12);
+          ctx.fillText(line, 80, subStart + i * 48);
         });
         ctx.globalAlpha = 1;
       }
@@ -362,8 +331,18 @@ export async function renderTextSlide(
   ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
 
   // Define image draw area based on layout
-  const imgAreaY = layout === "top-strip" && hasImage ? stripH : 0;
-  const imgAreaH = SLIDE_H - imgAreaY;
+  let imgAreaY = 0;
+  let imgAreaH = SLIDE_H;
+  if (hasImage) {
+    if (layout === "top-strip") {
+      imgAreaY = stripH;
+      imgAreaH = SLIDE_H - stripH;
+    } else if (layout === "magazine") {
+      // Image on top 50% only
+      imgAreaY = 0;
+      imgAreaH = Math.round(SLIDE_H * 0.5);
+    }
+  }
 
   // Background image
   if (hasImage) {
@@ -381,10 +360,13 @@ export async function renderTextSlide(
       }
       ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
 
-      // Dark overlay over the image area (both layouts benefit from this)
-      const overlayOpacity = slide.overlayOpacity ?? 0.65;
-      ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
-      ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
+      // Dark overlay over the image area (only where text overlaps the image)
+      // Magazine layout has text below image, so no overlay needed
+      if (layout !== "magazine") {
+        const overlayOpacity = slide.overlayOpacity ?? 0.65;
+        ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
+        ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
+      }
     } catch {
       // Fallback handled by base background fill
     }
@@ -394,72 +376,64 @@ export async function renderTextSlide(
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  if (layout === "centered-card") {
-    // Style 3: centered card with title + body inside
-    ctx.textAlign = "center";
+  if (layout === "magazine") {
+    // Style 3: editorial magazine — big number/accent, title below, body after
+    ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
 
-    // Darken background image slightly if present
+    // If there's an image, show it on top 50% with overlay
     if (hasImage) {
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+      const imgBottomY = Math.round(SLIDE_H * 0.5);
+      // Solid dark strip below image
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, imgBottomY, SLIDE_W, SLIDE_H - imgBottomY);
+      // Thin accent line between image and text
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(0, imgBottomY, SLIDE_W, 4);
     }
 
-    const cardW = SLIDE_W - 160;
-    const padH = 70;
-    const padV = 80;
+    // Content area: if image, below split; else full
+    const contentTop = hasImage ? Math.round(SLIDE_H * 0.5) + 80 : 220;
+    const marginX = 80;
 
-    // Measure title
-    const titleFontSize = 72;
-    const titleLineH = 86;
-    ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-    const titleLines = wrapText(ctx, slide.title, cardW - padH * 2);
-    const titleTotalH = titleLines.length * titleLineH;
-
-    // Measure body
-    const bodyLineH = 52;
-    ctx.font = "400 40px system-ui, sans-serif";
-    const bodyLines = wrapText(ctx, slide.body, cardW - padH * 2);
-    const bodyTotalH = bodyLines.length * bodyLineH;
-    const gap = bodyLines.length > 0 ? 40 : 0;
-    const accentH = 8;
-    const accentGap = 30;
-
-    const cardH = padV * 2 + titleTotalH + gap + bodyTotalH + accentH + accentGap;
-    const cardX = (SLIDE_W - cardW) / 2;
-    const cardY = (SLIDE_H - cardH) / 2 - 40;
-
-    // Card background
-    ctx.fillStyle = hasImage ? "rgba(0,0,0,0.78)" : "#0a0a0a";
-    ctx.beginPath();
-    const radius = 24;
-    ctx.moveTo(cardX + radius, cardY);
-    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
-    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
-    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
-    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
-    ctx.closePath();
-    ctx.fill();
-
-    // Accent line at top of card
+    // Accent marker
     ctx.fillStyle = "#fbbf24";
-    ctx.fillRect(cardX + (cardW - 100) / 2, cardY + padV - 20, 100, accentH);
+    ctx.fillRect(marginX, contentTop, 60, 5);
+
+    // Editorial label (small uppercase)
+    ctx.fillStyle = slide.textColor || "#ffffff";
+    ctx.font = "700 28px system-ui, sans-serif";
+    ctx.globalAlpha = 0.6;
+    ctx.fillText("EDITORIAL", marginX, contentTop + 55);
+    ctx.globalAlpha = 1;
 
     // Title
-    ctx.fillStyle = slide.textColor || "#ffffff";
+    const titleFontSize = hasImage ? 68 : 88;
+    const titleLineH = hasImage ? 80 : 102;
     ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-    const titleStartY = cardY + padV + accentGap;
+    const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX * 2);
+    const titleStartY = contentTop + 100;
     titleLines.forEach((line, i) => {
-      ctx.fillText(line, SLIDE_W / 2, titleStartY + (i + 1) * titleLineH - 20);
+      ctx.fillText(line, marginX, titleStartY + i * titleLineH);
     });
+
+    // Separator line
+    const afterTitleY = titleStartY + titleLines.length * titleLineH + 30;
+    ctx.fillStyle = slide.textColor || "#ffffff";
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(marginX, afterTitleY, 180, 2);
+    ctx.globalAlpha = 1;
 
     // Body
     if (slide.body) {
-      ctx.font = "400 40px system-ui, sans-serif";
+      ctx.fillStyle = slide.textColor || "#ffffff";
+      ctx.font = "400 38px Georgia, serif";
       ctx.globalAlpha = 0.9;
-      const bodyStart = titleStartY + titleTotalH + gap;
+      const bodyLines = wrapText(ctx, slide.body, SLIDE_W - marginX * 2);
+      const bodyStart = afterTitleY + 50;
+      const bodyLineH = 52;
       bodyLines.forEach((line, i) => {
-        ctx.fillText(line, SLIDE_W / 2, bodyStart + (i + 1) * bodyLineH - 12);
+        ctx.fillText(line, marginX, bodyStart + i * bodyLineH);
       });
       ctx.globalAlpha = 1;
     }

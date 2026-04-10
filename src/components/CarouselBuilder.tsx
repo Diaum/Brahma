@@ -422,7 +422,7 @@ export function CarouselBuilder({
                           ? "Gradient"
                           : layout === "top-strip"
                             ? "Strip"
-                            : "Card"}
+                            : "Magazine"}
                       </button>
                     ))}
                   </div>
@@ -499,7 +499,7 @@ export function CarouselBuilder({
                           ? "Centro"
                           : lay === "top-strip"
                             ? "Strip"
-                            : "Card"}
+                            : "Magazine"}
                       </button>
                     ))}
                   </div>
