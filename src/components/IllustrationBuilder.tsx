@@ -450,7 +450,9 @@ export function IllustrationBuilder({
                     </div>
 
                     <div>
-                      <label className="text-xs text-muted block mb-1.5">Subtext</label>
+                      <label className="text-xs text-muted block mb-1.5">
+                        {activeIdx === 0 ? "Subtitulo" : "Texto"}
+                      </label>
                       <textarea
                         value={slides[activeIdx].subtext}
                         onChange={(e) =>
@@ -460,12 +462,12 @@ export function IllustrationBuilder({
                             )
                           )
                         }
-                        rows={3}
-                        maxLength={100}
+                        rows={activeIdx === 0 ? 3 : 6}
+                        maxLength={activeIdx === 0 ? 100 : 280}
                         className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent resize-none"
                       />
                       <p className="text-[10px] text-muted mt-1">
-                        {slides[activeIdx].subtext.length}/100
+                        {slides[activeIdx].subtext.length}/{activeIdx === 0 ? 100 : 280}
                       </p>
                     </div>
 

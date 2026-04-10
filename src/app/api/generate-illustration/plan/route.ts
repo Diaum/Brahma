@@ -46,13 +46,14 @@ TODAS as 4 ilustracoes devem ser sobre o CONTEUDO do artigo. NAO inclua CTA sobr
 
 Para cada ilustracao retorne:
 - "headline": titulo CURTO em PORTUGUES que aparece NA imagem (max 50 chars). CAPSLOCK. Sensacionalista.
-- "subtext": texto menor em PORTUGUES que complementa o headline (max 100 chars)
+- "subtext": para o SLIDE 1 (capa): subtitulo curto (max 100 chars). Para SLIDES 2-4: texto informativo mais longo (max 280 chars) que desenvolve o ponto — igual corpo de carrossel, pode incluir dados, reflexoes, informacoes concretas.
 - "scene": descricao da cena em INGLES para geracao de imagem. NAO inclua texto/headline/subtext na scene. Descreva APENAS os elementos visuais: personagem, acao, objetos, composicao.
 
 REGRAS para headline e subtext:
 - Sempre em PORTUGUES BRASILEIRO
 - headline em CAPSLOCK
-- Frases curtas e impactantes
+- Slide 1: subtext curto e chamativo (max 100 chars)
+- Slides 2-4: subtext e um TEXTO informativo (max 280 chars) que passa informacao real do artigo
 
 REGRAS para scene:
 - APENAS descricao visual em INGLES (personagem, objetos, composicao, metafora)
