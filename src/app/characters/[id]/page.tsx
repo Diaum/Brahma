@@ -8,17 +8,35 @@ import { CarouselBuilder } from "@/components/CarouselBuilder";
 import { IllustrationBuilder } from "@/components/IllustrationBuilder";
 import { renderSlide, Slide } from "@/lib/carousel-render";
 
-// Small canvas preview of the carousel cover (first slide)
-function CarouselCoverThumbnail({ slides }: { slides: unknown[] }) {
+// Preview thumbnail for saved carousel/illustration (first slide)
+function SavedItemThumbnail({ slides }: { slides: unknown[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const firstSlide = slides[0] as Record<string, unknown> | undefined;
+
+  // Check if this is an illustration (has image_url + headline) vs carousel (has type)
+  const isIllustration = firstSlide && "image_url" in firstSlide && !("type" in firstSlide);
+  const illustrationUrl = isIllustration ? (firstSlide.image_url as string) : null;
 
   useEffect(() => {
+    if (isIllustration) return; // illustrations use <img> instead
     const canvas = ref.current;
     if (!canvas) return;
-    const cover = slides[0] as Slide | undefined;
+    const cover = firstSlide as Slide | undefined;
     if (!cover) return;
     renderSlide(canvas, cover).catch(() => {});
-  }, [slides]);
+  }, [slides, isIllustration, firstSlide]);
+
+  if (isIllustration && illustrationUrl) {
+    return (
+      <img
+        src={illustrationUrl}
+        alt="preview"
+        className="w-full h-full object-cover rounded-md"
+        style={{ aspectRatio: "4/5" }}
+        loading="lazy"
+      />
+    );
+  }
 
   return (
     <canvas
@@ -454,6 +472,66 @@ export default function CharacterPage() {
   useEffect(() => {
     loadSavedCarousels();
   }, [loadSavedCarousels]);
+
+  const [downloadingSavedId, setDownloadingSavedId] = useState<string | null>(null);
+
+  async function handleDownloadSaved(car: SavedCarousel) {
+    setDownloadingSavedId(car.id);
+    try {
+      const zip = new JSZip();
+      const slides = car.slides as Array<Record<string, unknown>>;
+
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        // Determine image URL: illustration (image_url) or carousel (cover with imageUrl)
+        const imageUrl =
+          (slide.image_url as string) || (slide.imageUrl as string) || "";
+
+        if (imageUrl) {
+          try {
+            const fetchUrl = imageUrl.startsWith("/")
+              ? imageUrl
+              : `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+            const res = await fetch(fetchUrl);
+            if (res.ok) {
+              const blob = await res.blob();
+              zip.file(`${String(i + 1).padStart(2, "0")}.png`, blob);
+            }
+          } catch {
+            // skip
+          }
+        } else if (slide.type === "cover" || slide.type === "text" || slide.type === "cta") {
+          // Carousel slide: render via canvas
+          const canvas = document.createElement("canvas");
+          try {
+            await renderSlide(canvas, slide as unknown as Slide);
+            const blob = await new Promise<Blob | null>((resolve) =>
+              canvas.toBlob(resolve, "image/png")
+            );
+            if (blob) {
+              zip.file(`${String(i + 1).padStart(2, "0")}.png`, blob);
+            }
+          } catch {
+            // skip
+          }
+        }
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${car.name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } finally {
+      setDownloadingSavedId(null);
+    }
+  }
 
   async function handleDeleteCarousel(carouselId: string) {
     if (!confirm("Excluir este carrossel?")) return;
@@ -2554,7 +2632,7 @@ export default function CharacterPage() {
                       className="group bg-background border border-border rounded-lg overflow-hidden hover:border-accent/50 transition relative"
                     >
                       <div className="p-1.5">
-                        <CarouselCoverThumbnail slides={car.slides} />
+                        <SavedItemThumbnail slides={car.slides} />
                       </div>
                       <div className="px-3 pb-2 pt-1">
                         <div className="text-xs font-semibold text-foreground truncate mb-0.5">
@@ -2570,13 +2648,23 @@ export default function CharacterPage() {
                           </span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteCarousel(car.id)}
-                        className="absolute top-2 right-2 bg-black/80 text-white text-xs w-6 h-6 rounded-full hover:bg-red-600 transition cursor-pointer flex items-center justify-center"
-                        title="Excluir carrossel"
-                      >
-                        ✕
-                      </button>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <button
+                          onClick={() => handleDownloadSaved(car)}
+                          disabled={downloadingSavedId === car.id}
+                          className="bg-black/80 text-white text-xs w-6 h-6 rounded-full hover:bg-accent hover:text-black transition cursor-pointer flex items-center justify-center disabled:opacity-50"
+                          title="Baixar"
+                        >
+                          {downloadingSavedId === car.id ? "..." : "↓"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCarousel(car.id)}
+                          className="bg-black/80 text-white text-xs w-6 h-6 rounded-full hover:bg-red-600 transition cursor-pointer flex items-center justify-center"
+                          title="Excluir"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
