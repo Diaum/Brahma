@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import JSZip from "jszip";
+import {
+  renderCtaSlide,
+  canvasToBlob,
+  DEFAULT_CTA_HEADLINE,
+  DEFAULT_CTA_BODY,
+  CtaSlide,
+} from "@/lib/carousel-render";
 
 interface IllustrationSlide {
   headline: string;
@@ -48,13 +55,28 @@ export function IllustrationBuilder({
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
 
-  // CTA slide (5th, fixed)
+  // CTA slide (5th, fixed) — rendered via canvas
   const ctaSlide: IllustrationSlide = {
-    headline: "DIAUM",
-    subtext: "Um app que te ajuda a combater seu vicio em conteudo adulto de forma anonima e acolhedora.",
+    headline: DEFAULT_CTA_HEADLINE,
+    subtext: DEFAULT_CTA_BODY,
     scene: "",
-    image_url: CTA_IMAGE_URL,
+    image_url: "__CTA__", // sentinel value — rendered via canvas
   };
+  const ctaCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [ctaRendered, setCtaRendered] = useState(false);
+
+  // Render CTA canvas when slides are loaded
+  useEffect(() => {
+    if (slides.length === 0 || ctaRendered) return;
+    const canvas = ctaCanvasRef.current;
+    if (!canvas) return;
+    const ctaData: CtaSlide = {
+      type: "cta",
+      headline: DEFAULT_CTA_HEADLINE,
+      body: DEFAULT_CTA_BODY,
+    };
+    renderCtaSlide(canvas, ctaData).then(() => setCtaRendered(true));
+  }, [slides, ctaRendered]);
 
   async function handlePlan() {
     if (inputText.trim().length < 20) {
@@ -186,12 +208,18 @@ export function IllustrationBuilder({
         }
       }
 
-      // Download CTA slide (local image)
+      // Render CTA slide via canvas
       try {
-        const ctaRes = await fetch(CTA_IMAGE_URL);
-        if (ctaRes.ok) {
-          const blob = await ctaRes.blob();
-          zip.file(`ilustracao-${String(slides.length + 1).padStart(2, "0")}-cta.png`, blob);
+        const ctaCanvas = document.createElement("canvas");
+        const ctaData: CtaSlide = {
+          type: "cta",
+          headline: DEFAULT_CTA_HEADLINE,
+          body: DEFAULT_CTA_BODY,
+        };
+        await renderCtaSlide(ctaCanvas, ctaData);
+        const ctaBlob = await canvasToBlob(ctaCanvas);
+        if (ctaBlob) {
+          zip.file(`ilustracao-${String(slides.length + 1).padStart(2, "0")}-cta.png`, ctaBlob);
         }
       } catch {
         // skip
@@ -319,11 +347,17 @@ export function IllustrationBuilder({
                       }`}
                     >
                       <div className="aspect-[4/5] bg-background flex items-center justify-center text-muted">
-                        {s.image_url ? (
+                        {isCta ? (
+                          <canvas
+                            ref={i === slides.length ? ctaCanvasRef : undefined}
+                            className="w-full h-full object-cover"
+                            style={{ aspectRatio: "4/5" }}
+                          />
+                        ) : s.image_url ? (
                           <img
                             src={s.image_url}
                             alt={s.headline}
-                            className={`w-full h-full object-cover ${isCta ? "bg-white" : ""}`}
+                            className="w-full h-full object-cover"
                           />
                         ) : s.generating ? (
                           <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -348,11 +382,18 @@ export function IllustrationBuilder({
 
               {/* Center: preview */}
               <div className="flex-1 overflow-y-auto bg-background/30 flex items-center justify-center p-6">
-                {allSlides[activeIdx]?.image_url ? (
+                {activeIdx === slides.length ? (
+                  /* CTA preview via canvas */
+                  <canvas
+                    ref={ctaCanvasRef}
+                    className="max-h-[70vh] w-auto rounded-lg shadow-2xl"
+                    style={{ aspectRatio: "4/5" }}
+                  />
+                ) : allSlides[activeIdx]?.image_url && allSlides[activeIdx].image_url !== "__CTA__" ? (
                   <img
                     src={allSlides[activeIdx].image_url}
                     alt={allSlides[activeIdx].headline}
-                    className={`max-h-[70vh] w-auto rounded-lg shadow-2xl ${activeIdx === slides.length ? "bg-white" : ""}`}
+                    className="max-h-[70vh] w-auto rounded-lg shadow-2xl"
                     style={{ aspectRatio: "4/5" }}
                   />
                 ) : allSlides[activeIdx]?.generating ? (

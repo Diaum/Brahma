@@ -571,35 +571,82 @@ export async function renderCtaSlide(
   // Try to load and center logo
   try {
     const logo = await loadImage(DIAUM_LOGO_URL);
-    const logoSize = 460;
+    const logoSize = 400;
     const logoX = (SLIDE_W - logoSize) / 2;
-    const logoY = 240;
+    const logoY = 160;
     ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
   } catch {
-    // Fallback: simple black square
     ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect((SLIDE_W - 460) / 2, 240, 460, 460);
+    ctx.fillRect((SLIDE_W - 400) / 2, 160, 400, 400);
   }
 
   // Headline — dark text on white
   ctx.fillStyle = "#0a0a0a";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = "900 100px system-ui, sans-serif";
-  ctx.fillText(upper(slide.headline), SLIDE_W / 2, 800);
+  ctx.font = "900 90px system-ui, sans-serif";
+  ctx.fillText(upper(slide.headline), SLIDE_W / 2, 660);
 
   // Body text
-  ctx.font = "500 42px system-ui, sans-serif";
-  ctx.globalAlpha = 0.75;
+  ctx.font = "500 38px system-ui, sans-serif";
+  ctx.globalAlpha = 0.7;
   const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
-  const bodyLineH = 56;
-  const bodyStartY = 900;
+  const bodyLineH = 52;
+  const bodyStartY = 750;
   bodyLines.forEach((line, i) => {
     ctx.fillText(line, SLIDE_W / 2, bodyStartY + i * bodyLineH);
   });
   ctx.globalAlpha = 1;
 
-  // Watermark in dark on white bg
+  // Share and Save icons with labels
+  const iconsY = bodyStartY + bodyLines.length * bodyLineH + 80;
+  const iconSize = 48;
+  const iconGap = 200;
+
+  // Share icon (arrow pointing up-right from box)
+  ctx.strokeStyle = "#0a0a0a";
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const shareX = SLIDE_W / 2 - iconGap / 2;
+  // Box
+  ctx.beginPath();
+  ctx.moveTo(shareX - 16, iconsY - 8);
+  ctx.lineTo(shareX - 16, iconsY + 20);
+  ctx.lineTo(shareX + 16, iconsY + 20);
+  ctx.lineTo(shareX + 16, iconsY - 8);
+  ctx.stroke();
+  // Arrow up
+  ctx.beginPath();
+  ctx.moveTo(shareX, iconsY + 4);
+  ctx.lineTo(shareX, iconsY - 22);
+  ctx.stroke();
+  // Arrow head
+  ctx.beginPath();
+  ctx.moveTo(shareX - 10, iconsY - 14);
+  ctx.lineTo(shareX, iconsY - 22);
+  ctx.lineTo(shareX + 10, iconsY - 14);
+  ctx.stroke();
+  // Label
+  ctx.fillStyle = "#0a0a0a";
+  ctx.font = "600 28px system-ui, sans-serif";
+  ctx.fillText("Compartilhe", shareX, iconsY + iconSize + 10);
+
+  // Save/bookmark icon (flag shape)
+  const saveX = SLIDE_W / 2 + iconGap / 2;
+  ctx.beginPath();
+  ctx.moveTo(saveX - 14, iconsY - 22);
+  ctx.lineTo(saveX - 14, iconsY + 20);
+  ctx.lineTo(saveX, iconsY + 8);
+  ctx.lineTo(saveX + 14, iconsY + 20);
+  ctx.lineTo(saveX + 14, iconsY - 22);
+  ctx.closePath();
+  ctx.stroke();
+  // Label
+  ctx.fillText("Salve", saveX, iconsY + iconSize + 10);
+
+  // Watermark
   drawWatermark(ctx, "#0a0a0a");
 }
 
