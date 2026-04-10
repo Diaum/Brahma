@@ -4,7 +4,7 @@ export const SLIDE_W = 1080;
 export const SLIDE_H = 1350;
 export const WATERMARK = "@diaum_app";
 
-export type CoverLayout = "bottom-gradient" | "top-strip";
+export type CoverLayout = "bottom-gradient" | "top-strip" | "centered-card";
 
 export interface CoverSlide {
   type: "cover";
@@ -14,7 +14,7 @@ export interface CoverSlide {
   layout?: CoverLayout;
 }
 
-export type TextLayout = "centered" | "top-strip";
+export type TextLayout = "centered" | "top-strip" | "centered-card";
 
 export interface TextSlide {
   type: "text";
@@ -177,29 +177,52 @@ export async function renderCoverSlide(
       ctx.fillRect(0, SLIDE_H * 0.5, SLIDE_W, SLIDE_H * 0.5);
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = "900 120px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      ctx.textBaseline = "alphabetic";
       ctx.shadowColor = "rgba(0,0,0,0.7)";
       ctx.shadowBlur = 30;
       ctx.shadowOffsetY = 4;
-      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 100);
-      const titleLineH = 130;
-      const subHeight = slide.subtitle ? 80 : 0;
-      const startY =
-        SLIDE_H - 240 - subHeight - (titleLines.length - 1) * titleLineH;
+
+      // Measure title
+      const titleFontSize = 110;
+      const titleLineH = 120;
+      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
+      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 120);
+      const titleTotalH = titleLines.length * titleLineH;
+
+      // Measure subtitle
+      const subLineH = 54;
+      let subLines: string[] = [];
+      if (slide.subtitle) {
+        ctx.font = "500 42px system-ui, sans-serif";
+        subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
+      }
+      const subTotalH = subLines.length * subLineH;
+      const gap = subLines.length > 0 ? 30 : 0;
+
+      // Watermark reserved area: ~140px from bottom
+      const watermarkReserve = 160;
+      const blockBottom = SLIDE_H - watermarkReserve;
+      const blockTop = blockBottom - subTotalH - gap - titleTotalH;
+
+      // Draw title
+      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
       titleLines.forEach((line, i) => {
-        ctx.fillText(line, SLIDE_W / 2, startY + i * titleLineH);
+        ctx.fillText(
+          line,
+          SLIDE_W / 2,
+          blockTop + (i + 1) * titleLineH - (titleLineH - titleFontSize) / 2
+        );
       });
 
+      // Draw subtitle
       if (slide.subtitle) {
-        ctx.font = "500 44px system-ui, sans-serif";
+        ctx.font = "500 42px system-ui, sans-serif";
         ctx.shadowBlur = 15;
         ctx.globalAlpha = 0.95;
-        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
-        const subStartY = startY + titleLines.length * titleLineH + 30;
+        const subStart = blockTop + titleTotalH + gap;
         subLines.forEach((line, i) => {
-          ctx.fillText(line, SLIDE_W / 2, subStartY + i * 54);
+          ctx.fillText(line, SLIDE_W / 2, subStart + (i + 1) * subLineH - 10);
         });
         ctx.globalAlpha = 1;
       }
@@ -207,6 +230,76 @@ export async function renderCoverSlide(
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
+    } else if (layout === "centered-card") {
+      // Style 3: centered card with title, subtitle and accent line
+      const cardW = SLIDE_W - 160;
+      const padH = 70;
+      const padV = 80;
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+
+      // Measure title
+      const titleFontSize = 96;
+      const titleLineH = 108;
+      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
+      const titleLines = wrapText(ctx, slide.title, cardW - padH * 2);
+      const titleTotalH = titleLines.length * titleLineH;
+
+      // Measure subtitle
+      const subLineH = 52;
+      let subLines: string[] = [];
+      if (slide.subtitle) {
+        ctx.font = "500 40px system-ui, sans-serif";
+        subLines = wrapText(ctx, slide.subtitle, cardW - padH * 2);
+      }
+      const subTotalH = subLines.length * subLineH;
+      const gap = subLines.length > 0 ? 30 : 0;
+      const accentH = 8;
+      const accentGap = 30;
+
+      const cardH = padV * 2 + titleTotalH + gap + subTotalH + accentH + accentGap;
+      const cardX = (SLIDE_W - cardW) / 2;
+      const cardY = (SLIDE_H - cardH) / 2 - 40;
+
+      // Darken background image slightly around the card
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+
+      // Card with subtle background + border
+      ctx.fillStyle = "rgba(0,0,0,0.78)";
+      ctx.beginPath();
+      const radius = 24;
+      ctx.moveTo(cardX + radius, cardY);
+      ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
+      ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
+      ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
+      ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
+      ctx.closePath();
+      ctx.fill();
+
+      // Accent line at top of card
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(cardX + (cardW - 100) / 2, cardY + padV - 20, 100, accentH);
+
+      // Title
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
+      const titleStartY = cardY + padV + accentGap;
+      titleLines.forEach((line, i) => {
+        ctx.fillText(line, SLIDE_W / 2, titleStartY + (i + 1) * titleLineH - 20);
+      });
+
+      // Subtitle
+      if (slide.subtitle) {
+        ctx.font = "500 40px system-ui, sans-serif";
+        ctx.globalAlpha = 0.9;
+        const subStart = titleStartY + titleTotalH + gap;
+        subLines.forEach((line, i) => {
+          ctx.fillText(line, SLIDE_W / 2, subStart + (i + 1) * subLineH - 12);
+        });
+        ctx.globalAlpha = 1;
+      }
     } else if (layout === "top-strip") {
       // Style 2: solid color strip at top (image is already placed below it)
       ctx.fillStyle = "#000000";
@@ -301,7 +394,76 @@ export async function renderTextSlide(
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  if (layout === "top-strip") {
+  if (layout === "centered-card") {
+    // Style 3: centered card with title + body inside
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+
+    // Darken background image slightly if present
+    if (hasImage) {
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+    }
+
+    const cardW = SLIDE_W - 160;
+    const padH = 70;
+    const padV = 80;
+
+    // Measure title
+    const titleFontSize = 72;
+    const titleLineH = 86;
+    ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
+    const titleLines = wrapText(ctx, slide.title, cardW - padH * 2);
+    const titleTotalH = titleLines.length * titleLineH;
+
+    // Measure body
+    const bodyLineH = 52;
+    ctx.font = "400 40px system-ui, sans-serif";
+    const bodyLines = wrapText(ctx, slide.body, cardW - padH * 2);
+    const bodyTotalH = bodyLines.length * bodyLineH;
+    const gap = bodyLines.length > 0 ? 40 : 0;
+    const accentH = 8;
+    const accentGap = 30;
+
+    const cardH = padV * 2 + titleTotalH + gap + bodyTotalH + accentH + accentGap;
+    const cardX = (SLIDE_W - cardW) / 2;
+    const cardY = (SLIDE_H - cardH) / 2 - 40;
+
+    // Card background
+    ctx.fillStyle = hasImage ? "rgba(0,0,0,0.78)" : "#0a0a0a";
+    ctx.beginPath();
+    const radius = 24;
+    ctx.moveTo(cardX + radius, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
+    ctx.closePath();
+    ctx.fill();
+
+    // Accent line at top of card
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(cardX + (cardW - 100) / 2, cardY + padV - 20, 100, accentH);
+
+    // Title
+    ctx.fillStyle = slide.textColor || "#ffffff";
+    ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
+    const titleStartY = cardY + padV + accentGap;
+    titleLines.forEach((line, i) => {
+      ctx.fillText(line, SLIDE_W / 2, titleStartY + (i + 1) * titleLineH - 20);
+    });
+
+    // Body
+    if (slide.body) {
+      ctx.font = "400 40px system-ui, sans-serif";
+      ctx.globalAlpha = 0.9;
+      const bodyStart = titleStartY + titleTotalH + gap;
+      bodyLines.forEach((line, i) => {
+        ctx.fillText(line, SLIDE_W / 2, bodyStart + (i + 1) * bodyLineH - 12);
+      });
+      ctx.globalAlpha = 1;
+    }
+  } else if (layout === "top-strip") {
     // Black strip at top with title
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, SLIDE_W, stripH);

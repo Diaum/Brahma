@@ -75,6 +75,8 @@ function SlideThumbnail({ slide }: { slide: Slide }) {
 
 const MAX_TITLE = 80;
 const MAX_BODY = 280;
+const MAX_COVER_TITLE = 41;
+const MAX_COVER_SUBTITLE = 83;
 const MIN_SLIDES = 4;
 const MAX_SLIDES = 8;
 
@@ -401,26 +403,28 @@ export function CarouselBuilder({
                   <label className="text-xs text-muted block mb-1.5">
                     Layout
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["bottom-gradient", "top-strip"] as CoverLayout[]).map(
-                      (layout) => (
-                        <button
-                          key={layout}
-                          onClick={() =>
-                            updateSlide(activeIdx, { layout } as Partial<Slide>)
-                          }
-                          className={`text-xs py-2 rounded-lg border transition cursor-pointer ${
-                            ((slide as CoverSlide).layout || "bottom-gradient") === layout
-                              ? "bg-accent text-black border-accent font-semibold"
-                              : "bg-card border-border text-muted hover:text-foreground"
-                          }`}
-                        >
-                          {layout === "bottom-gradient"
-                            ? "Gradient"
-                            : "Strip Top"}
-                        </button>
-                      )
-                    )}
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      ["bottom-gradient", "top-strip", "centered-card"] as CoverLayout[]
+                    ).map((layout) => (
+                      <button
+                        key={layout}
+                        onClick={() =>
+                          updateSlide(activeIdx, { layout } as Partial<Slide>)
+                        }
+                        className={`text-[11px] py-2 rounded-lg border transition cursor-pointer ${
+                          ((slide as CoverSlide).layout || "bottom-gradient") === layout
+                            ? "bg-accent text-black border-accent font-semibold"
+                            : "bg-card border-border text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {layout === "bottom-gradient"
+                          ? "Gradient"
+                          : layout === "top-strip"
+                            ? "Strip"
+                            : "Card"}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -434,12 +438,12 @@ export function CarouselBuilder({
                     onChange={(e) =>
                       updateSlide(activeIdx, { title: e.target.value } as Partial<Slide>)
                     }
-                    maxLength={MAX_TITLE}
+                    maxLength={MAX_COVER_TITLE}
                     placeholder="Titulo sobre a imagem"
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
                   />
                   <p className="text-[10px] text-muted mt-1">
-                    {((slide as CoverSlide).title || "").length}/{MAX_TITLE}
+                    {((slide as CoverSlide).title || "").length}/{MAX_COVER_TITLE}
                   </p>
                 </div>
 
@@ -455,10 +459,13 @@ export function CarouselBuilder({
                         subtitle: e.target.value,
                       } as Partial<Slide>)
                     }
-                    maxLength={120}
+                    maxLength={MAX_COVER_SUBTITLE}
                     placeholder="Texto menor abaixo"
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
                   />
+                  <p className="text-[10px] text-muted mt-1">
+                    {((slide as CoverSlide).subtitle || "").length}/{MAX_COVER_SUBTITLE}
+                  </p>
                 </div>
               </>
             )}
@@ -473,20 +480,26 @@ export function CarouselBuilder({
                   <label className="text-xs text-muted block mb-1.5">
                     Layout
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["centered", "top-strip"] as TextLayout[]).map((lay) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      ["centered", "top-strip", "centered-card"] as TextLayout[]
+                    ).map((lay) => (
                       <button
                         key={lay}
                         onClick={() =>
                           updateSlide(activeIdx, { layout: lay } as Partial<Slide>)
                         }
-                        className={`text-xs py-2 rounded-lg border transition cursor-pointer ${
+                        className={`text-[11px] py-2 rounded-lg border transition cursor-pointer ${
                           ((slide as TextSlide).layout || "centered") === lay
                             ? "bg-accent text-black border-accent font-semibold"
                             : "bg-card border-border text-muted hover:text-foreground"
                         }`}
                       >
-                        {lay === "centered" ? "Centralizado" : "Strip Top"}
+                        {lay === "centered"
+                          ? "Centro"
+                          : lay === "top-strip"
+                            ? "Strip"
+                            : "Card"}
                       </button>
                     ))}
                   </div>
