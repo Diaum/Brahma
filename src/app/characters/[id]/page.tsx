@@ -416,6 +416,7 @@ export default function CharacterPage() {
     created_at: string;
   }
   const [savedCarousels, setSavedCarousels] = useState<SavedCarousel[]>([]);
+  const [showCarouselsList, setShowCarouselsList] = useState(false);
 
   const loadSavedCarousels = useCallback(async () => {
     const res = await fetch(`/api/characters/${id}/carousels`);
@@ -1327,6 +1328,20 @@ export default function CharacterPage() {
           </Button>
         </div>
 
+        {/* Saved carousels button */}
+        <button
+          onClick={() => setShowCarouselsList(true)}
+          className="w-full bg-card border border-border rounded-xl p-4 hover:border-accent/50 transition cursor-pointer flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📸</span>
+            <span className="text-sm font-semibold">Carrosseis</span>
+          </div>
+          <span className="text-xs text-muted bg-background rounded-full px-2 py-0.5">
+            {savedCarousels.length}
+          </span>
+        </button>
+
         {/* Back */}
         <a
           href="/"
@@ -1369,41 +1384,6 @@ export default function CharacterPage() {
           </div>
         )}
 
-        {/* Saved carousels */}
-        {savedCarousels.length > 0 && (
-          <div className="bg-card/40 border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Carrosseis salvos
-              </h3>
-              <span className="text-xs text-muted">{savedCarousels.length}</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {savedCarousels.map((car) => (
-                <div
-                  key={car.id}
-                  className="group bg-background border border-border rounded-lg p-3 hover:border-accent/50 transition relative"
-                >
-                  <div className="text-xs font-semibold text-foreground truncate mb-1">
-                    {car.name}
-                  </div>
-                  <div className="text-[10px] text-muted">
-                    {car.slides.length} slides
-                  </div>
-                  <div className="text-[10px] text-muted">
-                    {new Date(car.created_at).toLocaleDateString("pt-BR")}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteCarousel(car.id)}
-                    className="absolute top-2 right-2 text-muted hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {episodes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted">
@@ -2491,6 +2471,80 @@ export default function CharacterPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Carousels List Modal */}
+      {showCarouselsList && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowCarouselsList(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl max-w-3xl w-full mx-4 max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold">Carrosseis salvos</h2>
+                <p className="text-sm text-muted">
+                  {savedCarousels.length}{" "}
+                  {savedCarousels.length === 1 ? "carrossel" : "carrosseis"}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCarouselsList(false)}
+                className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {savedCarousels.length === 0 ? (
+                <div className="text-center text-muted py-10">
+                  <span className="text-5xl block mb-3">📸</span>
+                  <p className="text-sm">
+                    Nenhum carrossel salvo ainda.
+                  </p>
+                  <p className="text-xs mt-1">
+                    Crie um carrossel e clique em &quot;Salvar&quot; para aparecer aqui.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {savedCarousels.map((car) => (
+                    <div
+                      key={car.id}
+                      className="group bg-background border border-border rounded-lg p-3 hover:border-accent/50 transition relative"
+                    >
+                      <div className="text-xs font-semibold text-foreground truncate mb-1">
+                        {car.name}
+                      </div>
+                      <div className="text-[10px] text-muted">
+                        {car.slides.length} slides
+                      </div>
+                      <div className="text-[10px] text-muted">
+                        {new Date(car.created_at).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCarousel(car.id)}
+                        className="absolute top-2 right-2 text-muted hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
