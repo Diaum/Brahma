@@ -7,6 +7,7 @@ import {
   CoverSlide,
   TextSlide,
   CoverLayout,
+  TextLayout,
   renderSlide,
   canvasToBlob,
   SLIDE_W,
@@ -40,6 +41,7 @@ const DEFAULT_TEXT: TextSlide = {
   body: "",
   bgColor: "#000000",
   textColor: "#ffffff",
+  layout: "centered",
 };
 
 // Small canvas thumbnail for the left sidebar
@@ -404,6 +406,29 @@ export function CarouselBuilder({
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
                   Slide {activeIdx + 1}
                 </h3>
+
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Layout
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["centered", "top-strip"] as TextLayout[]).map((lay) => (
+                      <button
+                        key={lay}
+                        onClick={() =>
+                          updateSlide(activeIdx, { layout: lay } as Partial<Slide>)
+                        }
+                        className={`text-xs py-2 rounded-lg border transition cursor-pointer ${
+                          ((slide as TextSlide).layout || "centered") === lay
+                            ? "bg-accent text-black border-accent font-semibold"
+                            : "bg-card border-border text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {lay === "centered" ? "Centralizado" : "Strip Top"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div>
                   <label className="text-xs text-muted block mb-1.5">

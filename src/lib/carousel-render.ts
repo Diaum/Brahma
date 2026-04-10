@@ -14,6 +14,8 @@ export interface CoverSlide {
   layout?: CoverLayout;
 }
 
+export type TextLayout = "centered" | "top-strip";
+
 export interface TextSlide {
   type: "text";
   title: string;
@@ -22,6 +24,7 @@ export interface TextSlide {
   textColor: string;
   imageUrl?: string; // optional background image
   overlayOpacity?: number; // 0-1, default 0.65
+  layout?: TextLayout;
 }
 
 export type Slide = CoverSlide | TextSlide;
@@ -102,37 +105,42 @@ export async function renderCoverSlide(
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
 
+  const layout: CoverLayout = slide.layout || "bottom-gradient";
+  const stripH = 420;
+
+  // Define image draw area based on layout
+  const imgAreaY = layout === "top-strip" && slide.title ? stripH : 0;
+  const imgAreaH = SLIDE_H - imgAreaY;
+
   try {
     const img = await loadImage(slide.imageUrl);
 
-    // Cover fit (crop to fill 1080x1350)
+    // Cover fit within the image area (crop to fill)
     const imgRatio = img.width / img.height;
-    const slideRatio = SLIDE_W / SLIDE_H;
+    const areaRatio = SLIDE_W / imgAreaH;
 
     let sx = 0;
     let sy = 0;
     let sw = img.width;
     let sh = img.height;
 
-    if (imgRatio > slideRatio) {
-      // Image is wider — crop horizontally
-      sw = img.height * slideRatio;
+    if (imgRatio > areaRatio) {
+      sw = img.height * areaRatio;
       sx = (img.width - sw) / 2;
     } else {
-      // Image is taller — crop vertically
-      sh = img.width / slideRatio;
+      sh = img.width / areaRatio;
       sy = (img.height - sh) / 2;
     }
 
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, SLIDE_W, SLIDE_H);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
   } catch (err) {
     console.error("Failed to load cover image:", err);
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+    ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
     ctx.fillStyle = "#666";
     ctx.font = "40px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Imagem nao carregada", SLIDE_W / 2, SLIDE_H / 2);
+    ctx.fillText("Imagem nao carregada", SLIDE_W / 2, imgAreaY + imgAreaH / 2);
   }
 
   // Optional title overlay
@@ -179,8 +187,7 @@ export async function renderCoverSlide(
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
     } else if (layout === "top-strip") {
-      // Style 2: solid color strip at top with title left-aligned
-      const stripH = 420;
+      // Style 2: solid color strip at top (image is already placed below it)
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, SLIDE_W, stripH);
 
@@ -196,7 +203,7 @@ export async function renderCoverSlide(
       const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
       const titleLineH = 120;
       const totalTitleH = titleLines.length * titleLineH;
-      const startY = (stripH - totalTitleH) / 2 + 90;
+      const startY = (stripH - 40 - totalTitleH) / 2 + 90;
       titleLines.forEach((line, i) => {
         ctx.fillText(line, 80, startY + i * titleLineH);
       });
@@ -232,76 +239,118 @@ export async function renderTextSlide(
   canvas.width = SLIDE_W;
   canvas.height = SLIDE_H;
 
-  // Background: image or solid color
-  if (slide.imageUrl) {
+  const layout: TextLayout = slide.layout || "centered";
+  const stripH = 420;
+  const hasImage = !!slide.imageUrl;
+
+  // Fill base background first
+  ctx.fillStyle = slide.bgColor || "#000";
+  ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+
+  // Define image draw area based on layout
+  const imgAreaY = layout === "top-strip" && hasImage ? stripH : 0;
+  const imgAreaH = SLIDE_H - imgAreaY;
+
+  // Background image
+  if (hasImage) {
     try {
-      const img = await loadImage(slide.imageUrl);
+      const img = await loadImage(slide.imageUrl!);
       const imgRatio = img.width / img.height;
-      const slideRatio = SLIDE_W / SLIDE_H;
+      const areaRatio = SLIDE_W / imgAreaH;
       let sx = 0, sy = 0, sw = img.width, sh = img.height;
-      if (imgRatio > slideRatio) {
-        sw = img.height * slideRatio;
+      if (imgRatio > areaRatio) {
+        sw = img.height * areaRatio;
         sx = (img.width - sw) / 2;
       } else {
-        sh = img.width / slideRatio;
+        sh = img.width / areaRatio;
         sy = (img.height - sh) / 2;
       }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, SLIDE_W, SLIDE_H);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
 
-      // Dark overlay so text is readable
-      const overlayOpacity = slide.overlayOpacity ?? 0.65;
-      ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
-      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+      // Dark overlay for readability (only in "centered" layout where text is on top)
+      if (layout === "centered") {
+        const overlayOpacity = slide.overlayOpacity ?? 0.65;
+        ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
+        ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+      }
     } catch {
-      // Fallback to solid background
-      ctx.fillStyle = slide.bgColor || "#000";
-      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+      // Fallback handled by base background fill
     }
-  } else {
-    ctx.fillStyle = slide.bgColor || "#000";
-    ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
   }
 
   ctx.fillStyle = slide.textColor || "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  // Add text shadow for readability when using background image
-  if (slide.imageUrl) {
-    ctx.shadowColor = "rgba(0,0,0,0.8)";
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2;
+  if (layout === "top-strip") {
+    // Black strip at top with title
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, SLIDE_W, stripH);
+
+    // Accent line
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(80, stripH - 8, 120, 6);
+
+    // Title in strip
+    ctx.fillStyle = slide.textColor || "#ffffff";
+    ctx.font = "900 100px system-ui, sans-serif";
+    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+    const titleLineH = 110;
+    const totalTitleH = titleLines.length * titleLineH;
+    const titleStartY = (stripH - 40 - totalTitleH) / 2 + 80;
+    titleLines.forEach((line, i) => {
+      ctx.fillText(line, 80, titleStartY + i * titleLineH);
+    });
+
+    // Body below strip (over image if present)
+    if (slide.body) {
+      ctx.fillStyle = slide.textColor || "#ffffff";
+      ctx.font = "500 44px system-ui, sans-serif";
+      if (hasImage) {
+        ctx.shadowColor = "rgba(0,0,0,0.9)";
+        ctx.shadowBlur = 25;
+        ctx.shadowOffsetY = 3;
+      }
+      const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
+      const bodyLineH = 60;
+      bodyLines.forEach((line, i) => {
+        ctx.fillText(line, 80, stripH + 90 + i * bodyLineH);
+      });
+    }
+  } else {
+    // Centered layout (default)
+    if (hasImage) {
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+    }
+
+    ctx.font = "bold 80px system-ui, sans-serif";
+    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+    const titleLineH = 92;
+
+    ctx.font = "400 44px system-ui, sans-serif";
+    const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
+    const bodyLineH = 60;
+
+    const totalHeight =
+      titleLines.length * titleLineH + 60 + bodyLines.length * bodyLineH;
+    const startY = (SLIDE_H - totalHeight) / 2;
+
+    ctx.font = "bold 80px system-ui, sans-serif";
+    titleLines.forEach((line, i) => {
+      ctx.fillText(line, 80, startY + (i + 1) * titleLineH);
+    });
+
+    ctx.font = "400 44px system-ui, sans-serif";
+    ctx.globalAlpha = 0.85;
+    const bodyStartY = startY + titleLines.length * titleLineH + 60;
+    bodyLines.forEach((line, i) => {
+      ctx.fillText(line, 80, bodyStartY + (i + 1) * bodyLineH - 20);
+    });
+    ctx.globalAlpha = 1;
   }
-
-  // Title (bold, large)
-  ctx.font = "bold 80px system-ui, sans-serif";
-  const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
-  const titleLineH = 92;
-
-  // Calculate total height to center everything vertically
-  ctx.font = "400 44px system-ui, sans-serif";
-  const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
-  const bodyLineH = 60;
-
-  const totalHeight =
-    titleLines.length * titleLineH + 60 + bodyLines.length * bodyLineH;
-  const startY = (SLIDE_H - totalHeight) / 2;
-
-  // Draw title
-  ctx.font = "bold 80px system-ui, sans-serif";
-  titleLines.forEach((line, i) => {
-    ctx.fillText(line, 80, startY + (i + 1) * titleLineH);
-  });
-
-  // Draw body
-  ctx.font = "400 44px system-ui, sans-serif";
-  ctx.globalAlpha = 0.85;
-  const bodyStartY = startY + titleLines.length * titleLineH + 60;
-  bodyLines.forEach((line, i) => {
-    ctx.fillText(line, 80, bodyStartY + (i + 1) * bodyLineH - 20);
-  });
-  ctx.globalAlpha = 1;
 
   // Reset shadow before watermark
   ctx.shadowColor = "transparent";
