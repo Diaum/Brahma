@@ -35,15 +35,16 @@ export async function POST(request: Request) {
 scene: ${sanitize(scene)}`;
 
     // Add headline as bold text integrated into the image layout
+    // DO NOT sanitize headline/subtext — they are in Portuguese and appear as-is in the image
     if (headline) {
       prompt += `
 
-Bold large text integrated at the top of the image: "${sanitize(headline).toUpperCase()}"`;
+Bold large text integrated at the top of the image: "${headline.toUpperCase()}"`;
     }
 
     // Subtext only once, small, below the headline
     if (subtext) {
-      prompt += `. Smaller text below: "${sanitize(subtext)}"`;
+      prompt += `. Smaller text below: "${subtext}"`;
     }
 
     // Enforce color palette strictly
