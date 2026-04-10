@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import JSZip from "jszip";
 import { Button } from "@/components/ui";
 import { CarouselBuilder } from "@/components/CarouselBuilder";
+import { IllustrationBuilder } from "@/components/IllustrationBuilder";
 import { renderSlide, Slide } from "@/lib/carousel-render";
 
 // Small canvas preview of the carousel cover (first slide)
@@ -422,6 +423,9 @@ export default function CharacterPage() {
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}t=${Date.now()}`;
   }
+
+  // Illustration builder
+  const [showIllustrations, setShowIllustrations] = useState(false);
 
   // Carousel builder
   const [showCarousel, setShowCarousel] = useState(false);
@@ -1377,6 +1381,13 @@ export default function CharacterPage() {
       <div className="flex-1 overflow-y-auto space-y-6 pr-2">
         {/* Top bar with actions */}
         <div className="flex justify-end gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowIllustrations(true)}
+          >
+            🎨 Ilustracoes
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -2574,6 +2585,14 @@ export default function CharacterPage() {
           </div>
         </div>
       )}
+
+      {/* Illustration Builder */}
+      <IllustrationBuilder
+        open={showIllustrations}
+        onClose={() => setShowIllustrations(false)}
+        characterId={id}
+        characterName={character?.name || "personagem"}
+      />
 
       {/* Carousel Builder */}
       <CarouselBuilder

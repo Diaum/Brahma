@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { generateImage } from "@/lib/gemini-image";
 import { supabase } from "@/lib/supabase";
 
-const ILLUSTRATION_STYLE = `flat vector illustration, minimalist cartoon style, educational infographic, clean composition, simple shapes, soft shadows, modern corporate illustration, social media carousel slide, friendly character design, rounded shapes, vector art, flat colors, minimal details, high contrast, instagram carousel format, 4:5 ratio, infographic style, carousel slide, bold typography space, startup illustration style. no realistic style, no 3D, no photorealism, no complex details, no text on image, no words, no letters, no typography`;
+const ILLUSTRATION_STYLE = `cartoon vector illustration in the style of Scratch AI Instagram infographics, bold thick outlines, cel-shaded flat colors, exaggerated proportions, simple rounded character design, clean background with solid gradient and simple geometric accents, social media carousel slide format, 4:5 aspect ratio, infographic style, bold typography integrated into the image composition, startup illustration aesthetic, friendly approachable characters with minimal facial details, warm earthy tones for characters, educational visual storytelling. NO realistic style, NO 3D rendering, NO photorealism, NO complex textures, NO watermarks`;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { scene, color_palette, character_id } = body;
+    const { scene, headline, subtext, color_palette, character_id } = body;
 
     if (!scene) {
       return NextResponse.json(
@@ -17,21 +17,36 @@ export async function POST(request: Request) {
     }
 
     // Sanitize
-    const sanitizedScene = scene
-      .replace(/pornografi[ao]/gi, "digital content dependency")
-      .replace(/porn[ôo]/gi, "digital content")
-      .replace(/sexu/gi, "compulsive")
-      .replace(/masturba[çc][aã]o?/gi, "compulsive behavior")
-      .replace(/v[ií]cio/gi, "dependency")
-      .replace(/addiction/gi, "dependency");
+    const sanitize = (text: string) =>
+      text
+        .replace(/pornografi[ao]/gi, "digital content dependency")
+        .replace(/porn[ôo]/gi, "digital content")
+        .replace(/sexu/gi, "compulsive")
+        .replace(/masturba[çc][aã]o?/gi, "compulsive behavior")
+        .replace(/v[ií]cio/gi, "dependency")
+        .replace(/addiction/gi, "dependency");
 
-    const palette = color_palette || "dark green and teal color palette";
+    const palette = color_palette || "dark green gradient background";
 
-    const prompt = `${ILLUSTRATION_STYLE}, ${palette}.
+    // Build prompt with text integration (like Scratch AI style)
+    let prompt = `${ILLUSTRATION_STYLE}, ${palette}.
 
-scene: ${sanitizedScene}
+scene: ${sanitize(scene)}`;
 
-background: solid gradient with simple geometric shapes, clean and modern`;
+    // Add text to be rendered IN the image (like the reference images)
+    if (headline) {
+      prompt += `
+
+text on image (bold, large headline at the top, white or light color, uppercase):
+"${sanitize(headline).toUpperCase()}"`;
+    }
+
+    if (subtext) {
+      prompt += `
+
+subtext (smaller text below headline or at bottom, white or light):
+"${sanitize(subtext)}"`;
+    }
 
     const result = await generateImage({
       prompt,
@@ -40,9 +55,9 @@ background: solid gradient with simple geometric shapes, clean and modern`;
 
     const imageBuffer = Buffer.from(result.imageBase64, "base64");
 
-    // Upload to Supabase storage
-    const charSlug = character_id ? character_id.slice(0, 8) : "illustrations";
-    const fileName = `illustrations/${charSlug}/${Date.now()}.png`;
+    // Upload to storage
+    const slug = character_id ? character_id.slice(0, 8) : "general";
+    const fileName = `illustrations/${slug}/${Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from("brahma-images")

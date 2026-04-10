@@ -98,72 +98,6 @@ export function CarouselBuilder({
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
 
-  // Illustration generation
-  const [showIllustrationModal, setShowIllustrationModal] = useState(false);
-  const [illustrationScene, setIllustrationScene] = useState("");
-  const [illustrationColor, setIllustrationColor] = useState("dark green and teal color palette");
-  const [generatingIllustration, setGeneratingIllustration] = useState(false);
-  const [illustrationTargetIdx, setIllustrationTargetIdx] = useState<number | null>(null);
-
-  function openIllustrationGen(idx: number) {
-    setIllustrationTargetIdx(idx);
-    // Auto-fill scene from slide title/body
-    const slide = slides[idx];
-    if (slide?.type === "cover") {
-      const c = slide as CoverSlide;
-      setIllustrationScene(
-        `${c.title || ""} ${c.subtitle || ""}`.trim() ||
-          "a male character using a smartphone looking distracted"
-      );
-    } else if (slide?.type === "text") {
-      const t = slide as TextSlide;
-      setIllustrationScene(
-        `${t.title || ""} ${t.body || ""}`.trim() ||
-          "a male character in a thoughtful moment"
-      );
-    } else {
-      setIllustrationScene("a male character using a smartphone looking distracted");
-    }
-    setShowIllustrationModal(true);
-  }
-
-  async function handleGenerateIllustration() {
-    if (!illustrationScene.trim() || illustrationTargetIdx === null) return;
-    setGeneratingIllustration(true);
-
-    try {
-      const res = await fetch("/api/generate-illustration", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scene: illustrationScene.trim(),
-          color_palette: illustrationColor,
-          character_id: characterId,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Erro ao gerar ilustracao");
-      }
-
-      const data = await res.json();
-
-      // Set as imageUrl for the target slide
-      if (slides[illustrationTargetIdx].type === "cover") {
-        updateSlide(illustrationTargetIdx, { imageUrl: data.image_url } as Partial<Slide>);
-      } else {
-        updateSlide(illustrationTargetIdx, { imageUrl: data.image_url } as Partial<Slide>);
-      }
-
-      setShowIllustrationModal(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro desconhecido");
-    } finally {
-      setGeneratingIllustration(false);
-    }
-  }
-
   // AI generation
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiInputText, setAiInputText] = useState("");
@@ -531,36 +465,20 @@ export function CarouselBuilder({
                         alt="cover"
                         className="w-16 h-20 object-cover rounded-md border border-border"
                       />
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => setPickingCover(true)}
-                          className="text-xs text-accent hover:underline cursor-pointer text-left"
-                        >
-                          Trocar (shot)
-                        </button>
-                        <button
-                          onClick={() => openIllustrationGen(activeIdx)}
-                          className="text-xs text-accent hover:underline cursor-pointer text-left"
-                        >
-                          Gerar ilustracao
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => setPickingCover(true)}
-                        className="py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
+                        className="text-xs text-accent hover:underline cursor-pointer"
                       >
-                        Shot
-                      </button>
-                      <button
-                        onClick={() => openIllustrationGen(activeIdx)}
-                        className="py-3 border-2 border-dashed border-accent/30 rounded-lg flex items-center justify-center text-accent/70 hover:text-accent hover:border-accent transition text-xs cursor-pointer"
-                      >
-                        🎨 Ilustrar
+                        Trocar imagem
                       </button>
                     </div>
+                  ) : (
+                    <button
+                      onClick={() => setPickingCover(true)}
+                      className="w-full py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-sm cursor-pointer"
+                    >
+                      Escolher shot
+                    </button>
                   )}
                 </div>
 
@@ -722,13 +640,7 @@ export function CarouselBuilder({
                           onClick={() => setPickingBgFor(activeIdx)}
                           className="text-xs text-accent hover:underline cursor-pointer text-left"
                         >
-                          Trocar (shot)
-                        </button>
-                        <button
-                          onClick={() => openIllustrationGen(activeIdx)}
-                          className="text-xs text-accent hover:underline cursor-pointer text-left"
-                        >
-                          Gerar ilustracao
+                          Trocar
                         </button>
                         <button
                           onClick={() =>
@@ -743,20 +655,12 @@ export function CarouselBuilder({
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setPickingBgFor(activeIdx)}
-                        className="py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
-                      >
-                        + Shot
-                      </button>
-                      <button
-                        onClick={() => openIllustrationGen(activeIdx)}
-                        className="py-3 border-2 border-dashed border-accent/30 rounded-lg flex items-center justify-center text-accent/70 hover:text-accent hover:border-accent transition text-xs cursor-pointer"
-                      >
-                        🎨 Ilustrar
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setPickingBgFor(activeIdx)}
+                      className="w-full py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
+                    >
+                      + Adicionar imagem
+                    </button>
                   )}
                 </div>
 
@@ -897,97 +801,6 @@ export function CarouselBuilder({
           </div>
         </div>
       </div>
-
-      {/* Illustration Generation Modal */}
-      {showIllustrationModal && (
-        <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => !generatingIllustration && setShowIllustrationModal(false)}
-        >
-          <div
-            className="bg-card border border-border rounded-2xl max-w-lg w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h3 className="font-semibold">🎨 Gerar Ilustracao</h3>
-              <button
-                onClick={() => !generatingIllustration && setShowIllustrationModal(false)}
-                disabled={generatingIllustration}
-                className="text-muted hover:text-foreground text-xl cursor-pointer p-1 disabled:opacity-50"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="text-xs text-muted block mb-1.5">
-                  Descricao da cena
-                </label>
-                <textarea
-                  value={illustrationScene}
-                  onChange={(e) => setIllustrationScene(e.target.value)}
-                  placeholder="Ex: a male character using a smartphone looking distracted, subtle visual metaphor about digital habit"
-                  rows={4}
-                  className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-accent transition resize-none"
-                />
-                <p className="text-[10px] text-muted mt-1">
-                  Descreva a cena em ingles. O estilo flat vector sera aplicado automaticamente.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs text-muted block mb-1.5">
-                  Paleta de cores
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Verde", value: "dark green and teal color palette" },
-                    { label: "Azul", value: "dark blue and navy color palette" },
-                    { label: "Roxo", value: "dark purple and indigo color palette" },
-                  ].map((p) => (
-                    <button
-                      key={p.value}
-                      onClick={() => setIllustrationColor(p.value)}
-                      className={`text-xs py-2 rounded-lg border transition cursor-pointer ${
-                        illustrationColor === p.value
-                          ? "bg-accent text-black border-accent font-semibold"
-                          : "bg-card border-border text-muted hover:text-foreground"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {generatingIllustration && (
-                <div className="flex items-center gap-3 text-accent bg-accent/10 border border-accent/30 rounded-lg p-3">
-                  <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm">Gerando ilustracao... (~20s)</span>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-border flex gap-3 justify-end">
-              <button
-                onClick={() => !generatingIllustration && setShowIllustrationModal(false)}
-                disabled={generatingIllustration}
-                className="text-muted hover:text-foreground text-sm px-3 cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleGenerateIllustration}
-                disabled={generatingIllustration || !illustrationScene.trim()}
-                className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
-              >
-                {generatingIllustration ? "Gerando..." : "🎨 Gerar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* AI Generation Modal */}
       {showAiModal && (
