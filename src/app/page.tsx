@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { PageHeader, Button, Card, Modal } from "@/components/ui";
 import { CharacterCard } from "@/components/CharacterCard";
 
@@ -19,23 +20,28 @@ export default function Home() {
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadCharacters = useCallback(() => {
+  const loadCharacters = useCallback(async () => {
     setLoading(true);
-    fetch("/api/characters")
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao carregar personagens");
-        return res.json();
-      })
-      .then((data) => setCharacters(data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      const res = await fetch("/api/characters");
+      if (!res.ok) throw new Error("Erro ao carregar personagens");
+      const data = await res.json();
+      setCharacters(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  // Always load on mount + when pathname changes (client-side navigation)
+  const pathname = usePathname();
   useEffect(() => {
     loadCharacters();
-  }, [loadCharacters]);
+  }, [loadCharacters, pathname]);
 
-  // Re-fetch when page becomes visible (debounced, only if last fetch > 30s ago)
+  // Re-fetch when page becomes visible (debounced 30s)
   useEffect(() => {
     let lastFetch = Date.now();
     function maybeRefetch() {
