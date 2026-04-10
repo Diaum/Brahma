@@ -74,7 +74,7 @@ ${source_url ? `\n📰 Fonte: ${source_url}` : ""}
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
           safetySettings: [
             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
             { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
@@ -90,12 +90,25 @@ ${source_url ? `\n📰 Fonte: ${source_url}` : ""}
     }
 
     const data = await res.json();
+
+    const finishReason = data?.candidates?.[0]?.finishReason;
+    if (finishReason === "SAFETY") {
+      console.error("[caption] Blocked by safety filter");
+      return NextResponse.json(
+        { error: "Descricao bloqueada pelo filtro. Tente novamente." },
+        { status: 500 }
+      );
+    }
+
     const caption =
       data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
 
     if (!caption) {
+      console.error("[caption] Empty response. Finish reason:", finishReason);
       return NextResponse.json({ error: "Resposta vazia" }, { status: 500 });
     }
+
+    console.log("[caption] Generated:", caption.length, "chars, finishReason:", finishReason);
 
     return NextResponse.json({ caption });
   } catch (err) {
