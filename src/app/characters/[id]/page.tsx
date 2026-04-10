@@ -779,33 +779,40 @@ export default function CharacterPage() {
 
     try {
       let prompt = shot.prompt_full || shot.prompt_scene;
-      console.log("[handleGenerate] prompt:", prompt?.slice(0, 100));
+      const epNumber = getEpisodeNumber(shot.episode_id);
 
-      // Always use the extraPrompt when provided (regen flow)
-      if (extraPrompt !== undefined && extraPrompt.trim()) {
-        const epNumber = getEpisodeNumber(shot.episode_id);
+      // Determine what to send to compose-prompt:
+      // - If extraPrompt provided (regen with edit), use it
+      // - Otherwise, use shot's prompt_scene to recompose with current character
+      const sceneToCompose = extraPrompt?.trim() || shot.prompt_scene;
+
+      if (sceneToCompose) {
         const translateRes = await fetch(
           `/api/characters/${id}/compose-prompt`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt_scene: extraPrompt.trim(), episode_number: epNumber }),
+            body: JSON.stringify({ prompt_scene: sceneToCompose, episode_number: epNumber }),
           }
         );
         if (translateRes.ok) {
           const data = await translateRes.json();
           prompt = data.prompt_full;
 
-          // Also update the shot's prompt in the database
+          // Update the shot's prompt_full in the database (and prompt_scene only if user edited)
+          const updatePayload: Record<string, string> = {
+            prompt_full: data.prompt_full,
+          };
+          if (extraPrompt?.trim()) {
+            updatePayload.prompt_scene = extraPrompt.trim();
+          }
+
           await fetch(
             `/api/characters/${id}/episodes/${shot.episode_id}/shots/${shot.id}`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                prompt_scene: extraPrompt.trim(),
-                prompt_full: data.prompt_full,
-              }),
+              body: JSON.stringify(updatePayload),
             }
           );
         }
