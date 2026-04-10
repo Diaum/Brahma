@@ -77,6 +77,11 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+// Uppercase helper for titles
+function upper(text: string): string {
+  return (text || "").toUpperCase();
+}
+
 // Word wrap for canvas text
 function wrapText(
   ctx: CanvasRenderingContext2D,
@@ -190,7 +195,7 @@ export async function renderCoverSlide(
       const titleFontSize = 110;
       const titleLineH = 120;
       ctx.font = `900 ${titleFontSize}px system-ui, sans-serif`;
-      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 120);
+      const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - 120);
       const titleTotalH = titleLines.length * titleLineH;
 
       // Measure subtitle
@@ -266,7 +271,7 @@ export async function renderCoverSlide(
       const titleFontSize = 96;
       const titleLineH = 110;
       ctx.font = `italic 700 ${titleFontSize}px Georgia, serif`;
-      const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX - 100);
+      const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - marginX - 100);
       const titleStartY = 380;
       titleLines.forEach((line, i) => {
         ctx.fillText(line, marginX, titleStartY + i * titleLineH);
@@ -303,7 +308,7 @@ export async function renderCoverSlide(
       ctx.font = "900 110px system-ui, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+      const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - 160);
       const titleLineH = 120;
       // Bottom baseline of last line sits at stripH - 70 (gives ~50px padding below)
       const lastLineY = stripH - 70;
@@ -438,7 +443,7 @@ export async function renderTextSlide(
     const titleFontSize = 84;
     const titleLineH = 100;
     ctx.font = `italic 700 ${titleFontSize}px Georgia, serif`;
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - marginX - 100);
+    const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - marginX - 100);
     const titleStartY = 420;
     titleLines.forEach((line, i) => {
       ctx.fillText(line, marginX, titleStartY + i * titleLineH);
@@ -478,7 +483,7 @@ export async function renderTextSlide(
     // Title in strip — anchored to bottom of strip
     ctx.fillStyle = slide.textColor || "#ffffff";
     ctx.font = "900 100px system-ui, sans-serif";
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+    const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - 160);
     const titleLineH = 110;
     const lastLineY = stripH - 70;
     const firstLineY = lastLineY - (titleLines.length - 1) * titleLineH;
@@ -515,7 +520,7 @@ export async function renderTextSlide(
     }
 
     ctx.font = "bold 80px system-ui, sans-serif";
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+    const titleLines = wrapText(ctx, upper(slide.title), SLIDE_W - 160);
     const titleLineH = 92;
 
     ctx.font = "400 44px system-ui, sans-serif";
@@ -586,7 +591,7 @@ export async function renderCtaSlide(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = "900 100px system-ui, sans-serif";
-  ctx.fillText(slide.headline, SLIDE_W / 2, 720);
+  ctx.fillText(upper(slide.headline), SLIDE_W / 2, 720);
 
   // Body text
   ctx.font = "500 42px system-ui, sans-serif";
