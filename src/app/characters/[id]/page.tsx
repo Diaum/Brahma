@@ -184,6 +184,64 @@ export default function CharacterPage() {
     setReviewingScript(false);
   }
 
+  // Manual script upload
+  const [showUploadScript, setShowUploadScript] = useState(false);
+  const [uploadScriptEp, setUploadScriptEp] = useState<string | null>(null);
+  const [uploadScriptText, setUploadScriptText] = useState("");
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  function openScriptUpload(epId: string) {
+    setUploadScriptEp(epId);
+    setUploadScriptText("");
+    setParseError(null);
+    setShowUploadScript(true);
+  }
+
+  function parseManualScript(text: string): GeneratedScene[] {
+    // Split by [CENA X] markers
+    const sceneBlocks = text.split(/\[CENA\s*\d+\]/i).filter((b) => b.trim().length > 0);
+
+    const scenes: GeneratedScene[] = [];
+    for (const block of sceneBlocks) {
+      // Extract narration (between Narração: and Descrição:)
+      const narrationMatch = block.match(/Narra[çc][aã]o[:\s]*([\s\S]*?)(?=(?:🎥|Descri[çc][aã]o[:\s])|$)/i);
+      // Extract description (between Descrição: and Prompt:)
+      const descriptionMatch = block.match(/Descri[çc][aã]o[:\s]*([\s\S]*?)(?=(?:🧾|Prompt[:\s])|$)/i);
+      // Extract prompt (everything after Prompt:)
+      const promptMatch = block.match(/Prompt[:\s]*([\s\S]*?)$/i);
+
+      const narration = narrationMatch?.[1]?.trim() || "";
+      const description = descriptionMatch?.[1]?.trim() || "";
+      const image_prompt = promptMatch?.[1]?.trim() || "";
+
+      // Skip if all empty
+      if (!narration && !description && !image_prompt) continue;
+
+      scenes.push({ narration, description, image_prompt });
+    }
+
+    return scenes;
+  }
+
+  function handleParseAndReview() {
+    setParseError(null);
+    try {
+      const scenes = parseManualScript(uploadScriptText);
+      if (scenes.length === 0) {
+        setParseError("Nenhuma cena encontrada. Verifique o formato do roteiro.");
+        return;
+      }
+
+      // Reuse the existing review flow
+      setScriptGenEp(uploadScriptEp);
+      setGeneratedScenes(scenes);
+      setReviewingScript(true);
+      setShowUploadScript(false);
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "Erro ao processar roteiro");
+    }
+  }
+
   async function handleGenerateScript() {
     if (!scriptGenEp || !scriptTheme.trim()) return;
     setGeneratingScript(true);
@@ -1315,6 +1373,13 @@ export default function CharacterPage() {
                       >
                         Gerar Roteiro
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => openScriptUpload(ep.id)}
+                      >
+                        Submeter Roteiro
+                      </Button>
                       {(shotsByEp[ep.id] || []).length > 0 && (
                         <Button
                           size="sm"
@@ -1611,6 +1676,70 @@ export default function CharacterPage() {
           );
         })}
       </div>
+
+      {/* Script Upload Modal */}
+      {showUploadScript && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowUploadScript(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold">Submeter Roteiro</h2>
+                <p className="text-sm text-muted">
+                  Cole seu roteiro completo no formato esperado
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUploadScript(false)}
+                className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="bg-background border border-border rounded-lg p-3 text-xs text-muted font-mono">
+                <p className="text-foreground/70 mb-2 font-sans font-medium">Formato esperado:</p>
+                {`[CENA 1]\n\n🎧 Narração:\nTexto da narração...\n\n🎥 Descrição:\nDescrição visual...\n\n🧾 Prompt:\nPrompt de imagem em inglês...\n\n[CENA 2]\n...`}
+              </div>
+
+              {parseError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {parseError}
+                </div>
+              )}
+
+              <textarea
+                value={uploadScriptText}
+                onChange={(e) => setUploadScriptText(e.target.value)}
+                placeholder={`[CENA 1]\n\n🎧 Narração:\n...\n\n🎥 Descrição:\n...\n\n🧾 Prompt:\n...`}
+                rows={20}
+                className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm font-mono focus:outline-none focus:border-accent transition resize-y"
+              />
+            </div>
+
+            <div className="px-6 py-4 border-t border-border shrink-0 flex gap-3">
+              <Button
+                onClick={handleParseAndReview}
+                disabled={!uploadScriptText.trim()}
+              >
+                Processar Roteiro
+              </Button>
+              <button
+                onClick={() => setShowUploadScript(false)}
+                className="text-muted hover:text-foreground text-sm px-3 cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Script Generator Modal */}
       {scriptGenEp && (
