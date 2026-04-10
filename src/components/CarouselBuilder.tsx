@@ -97,6 +97,7 @@ export function CarouselBuilder({
   const [globalOverlayOpacity, setGlobalOverlayOpacity] = useState(0.65);
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [sourceUrl, setSourceUrl] = useState("");
 
   // AI generation
   const [showAiModal, setShowAiModal] = useState(false);
@@ -295,6 +296,26 @@ export function CarouselBuilder({
         if (blob) {
           zip.file(`slide-${String(i + 1).padStart(2, "0")}.png`, blob);
         }
+      }
+
+      // Generate caption via AI
+      try {
+        const captionRes = await fetch("/api/generate-caption", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slides: slides.filter((s) => s.type !== "cta"),
+            source_url: sourceUrl.trim() || undefined,
+          }),
+        });
+        if (captionRes.ok) {
+          const { caption } = await captionRes.json();
+          if (caption) {
+            zip.file("descricao.txt", caption);
+          }
+        }
+      } catch {
+        // Caption is optional — continue without it
       }
 
       const content = await zip.generateAsync({ type: "blob" });
@@ -767,7 +788,18 @@ export function CarouselBuilder({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-border shrink-0">
+          <div className="flex items-center gap-3 mb-3">
+            <label className="text-[11px] text-muted shrink-0">Fonte (opcional):</label>
+            <input
+              type="text"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://link-da-materia.com"
+              className="flex-1 bg-background border border-border rounded-md px-2 py-1 text-xs focus:outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex items-center justify-between">
           <div className="text-xs text-muted">
             {savedName ? (
               <span className="text-green-400">✓ Salvo como {savedName}</span>
@@ -798,6 +830,7 @@ export function CarouselBuilder({
             >
               {downloading ? "Gerando PNGs..." : "Baixar (.zip)"}
             </button>
+          </div>
           </div>
         </div>
       </div>
