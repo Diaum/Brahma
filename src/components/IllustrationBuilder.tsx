@@ -23,7 +23,7 @@ const CTA_IMAGE_URL = "/diaum-logo.png";
 
 const COLOR_PALETTES = [
   { label: "Verde", value: "dark green gradient background with teal accents" },
-  { label: "Azul", value: "dark blue gradient background with navy accents" },
+  { label: "P&B", value: "black and white monochrome palette, grayscale tones, white accents on dark background" },
   { label: "Roxo", value: "dark purple gradient background with indigo accents" },
   { label: "Laranja", value: "dark orange gradient background with warm amber accents" },
 ];
