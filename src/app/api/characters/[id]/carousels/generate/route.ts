@@ -37,50 +37,35 @@ export async function POST(
 
   const maxPages = Math.min(Math.max(max_pages || MAX_SLIDES, MIN_SLIDES), MAX_SLIDES);
 
-  // Get character for context
-  const { data: character } = await supabase
-    .from("characters")
-    .select("name, age, description_pt")
-    .eq("id", id)
-    .single();
+  const prompt = `Voce e um social media manager brasileiro especializado em conteudo sobre saude masculina e bem-estar digital. Seu trabalho e criar carrosseis de Instagram que viralizam — ganchos fortes, linguagem direta, insights concretos.
 
-  const charContext = character
-    ? `Character for imagery: ${character.name}, ${character.age} anos. ${character.description_pt}`
-    : "";
-
-  const prompt = `Voce e um social media manager especializado em saude masculina e apps de bem-estar. Voce cria carrosseis impactantes para Instagram sobre o Diaum — um app que ajuda homens a combater dependencia de conteudo adulto online de forma anonima e acolhedora.
-
-Tom de voz: vulneravel, honesto, sem julgamento. Linguagem coloquial brasileira, primeira pessoa quando fizer sentido. Frases curtas e impactantes. Como se fosse um amigo conversando. NADA de texto academico ou palavras complicadas.
-
-${charContext}
-
-${theme_hint ? `Tema especifico: ${theme_hint}\n` : ""}
+${theme_hint ? `Tema/direcao: ${theme_hint}\n` : ""}
 
 CONTEUDO DE REFERENCIA (artigo/ideia/noticia):
 ${sanitizedText}
 
 Sua tarefa:
-1. Leia o conteudo acima e extraia os insights mais impactantes
+1. Leia o conteudo e extraia os insights mais interessantes, dados, fatos ou reflexoes que merecem ser compartilhados
 2. Crie um carrossel com ${MIN_SLIDES} a ${maxPages} slides (voce decide o numero ideal)
 3. Estruture:
-   - Slide 1 (CAPA): titulo curto e impactante (max 46 chars) + subtitulo explicativo (max 88 chars)
-   - Slides intermediarios: cada um com titulo (max 80 chars) e body (max 280 chars) desenvolvendo um ponto
+   - Slide 1 (CAPA): titulo SENSACIONALISTA que para o scroll (max 46 chars) + subtitulo que complementa (max 88 chars). Use numeros, perguntas provocativas, revelacoes, ganchos de curiosidade. Exemplos de estilo: "O vicio silencioso que 70% dos homens tem", "Por que seu cerebro sabota voce as 23h", "A verdade sobre o habito que ninguem conta"
+   - Slides intermediarios: cada um desenvolve UM ponto/dado/insight especifico. Titulo (max 80 chars) + body (max 280 chars)
    - NAO inclua slide CTA — ele sera adicionado automaticamente no final
-4. Cada slide deve ter um proposito claro (gancho, problema, dados, reflexao, virada)
-5. Use os dados/citacoes/fatos do conteudo quando possivel
 
-IMPORTANTE:
-- Linguagem SFW (safe for work) — fale do tema SEM palavras explicitas
-- Seja direto e humano, nao moralista
-- O objetivo e despertar identificacao e curiosidade sobre o app
-- Titulos em frases curtas, nao em perguntas longas
-- Evite clichês como "voce nao esta sozinho"
+REGRAS DE ESCRITA:
+- Portugues brasileiro coloquial, direto, sem jargao
+- Frases CURTAS e impactantes
+- Use dados, estatisticas, fatos concretos do texto quando possivel
+- Terceira pessoa ou impessoal — NAO fale sobre um personagem especifico, nao cite nomes de pessoas
+- Foco no INSIGHT do artigo, nao em uma historia pessoal
+- Capa deve gerar curiosidade e desejo de deslizar
+- Linguagem SFW — sem palavras explicitas
 
 Responda APENAS com JSON valido neste formato:
 {
   "cover": {
-    "title": "...",
-    "subtitle": "..."
+    "title": "titulo sensacionalista",
+    "subtitle": "subtitulo que complementa"
   },
   "slides": [
     { "title": "...", "body": "..." },
