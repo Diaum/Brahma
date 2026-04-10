@@ -27,14 +27,35 @@ export interface TextSlide {
   layout?: TextLayout;
 }
 
-export type Slide = CoverSlide | TextSlide;
+export interface CtaSlide {
+  type: "cta";
+  headline: string;
+  body: string;
+}
+
+export type Slide = CoverSlide | TextSlide | CtaSlide;
+
+export const DEFAULT_CTA_HEADLINE = "Diaum";
+export const DEFAULT_CTA_BODY =
+  "Um app que te ajuda a combater seu vicio em conteudo adulto de forma anonima e acolhedora.";
+export const DIAUM_LOGO_URL = "/diaum-logo.png";
 
 // Load image via proxy → blob → object URL (bypasses CORS)
 async function loadImage(url: string): Promise<HTMLImageElement> {
   // Strip cache-buster query to avoid duplicate fetches
   const cleanUrl = url.split("?")[0];
 
-  // Always use proxy (avoids CORS issues with Supabase public URLs)
+  // Relative URL (local asset): fetch directly
+  if (cleanUrl.startsWith("/")) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = cleanUrl;
+    });
+  }
+
+  // Absolute URL: go through proxy (avoids CORS with Supabase)
   const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`);
   if (!proxyRes.ok) {
     throw new Error(`Proxy HTTP ${proxyRes.status}`);
@@ -267,12 +288,10 @@ export async function renderTextSlide(
       }
       ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
 
-      // Dark overlay for readability (only in "centered" layout where text is on top)
-      if (layout === "centered") {
-        const overlayOpacity = slide.overlayOpacity ?? 0.65;
-        ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
-        ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
-      }
+      // Dark overlay over the image area (both layouts benefit from this)
+      const overlayOpacity = slide.overlayOpacity ?? 0.65;
+      ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
+      ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
     } catch {
       // Fallback handled by base background fill
     }
@@ -361,12 +380,67 @@ export async function renderTextSlide(
   drawWatermark(ctx, slide.textColor || "#ffffff");
 }
 
+export async function renderCtaSlide(
+  canvas: HTMLCanvasElement,
+  slide: CtaSlide
+): Promise<void> {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = SLIDE_W;
+  canvas.height = SLIDE_H;
+
+  // Dark gradient background
+  const gradient = ctx.createLinearGradient(0, 0, 0, SLIDE_H);
+  gradient.addColorStop(0, "#0a0a0a");
+  gradient.addColorStop(1, "#000000");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+
+  // Try to load and center logo
+  try {
+    const logo = await loadImage(DIAUM_LOGO_URL);
+    const logoSize = 360;
+    const logoX = (SLIDE_W - logoSize) / 2;
+    const logoY = 260;
+    ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+  } catch {
+    // Fallback: simple circle
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    ctx.arc(SLIDE_W / 2, 440, 180, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Headline
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "900 100px system-ui, sans-serif";
+  ctx.fillText(slide.headline, SLIDE_W / 2, 720);
+
+  // Body text
+  ctx.font = "500 42px system-ui, sans-serif";
+  ctx.globalAlpha = 0.85;
+  const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
+  const bodyLineH = 56;
+  const bodyStartY = 830;
+  bodyLines.forEach((line, i) => {
+    ctx.fillText(line, SLIDE_W / 2, bodyStartY + i * bodyLineH);
+  });
+  ctx.globalAlpha = 1;
+
+  drawWatermark(ctx, "#ffffff");
+}
+
 export async function renderSlide(
   canvas: HTMLCanvasElement,
   slide: Slide
 ): Promise<void> {
   if (slide.type === "cover") {
     await renderCoverSlide(canvas, slide);
+  } else if (slide.type === "cta") {
+    await renderCtaSlide(canvas, slide);
   } else {
     await renderTextSlide(canvas, slide);
   }

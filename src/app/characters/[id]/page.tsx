@@ -2434,6 +2434,7 @@ export default function CharacterPage() {
       <CarouselBuilder
         open={showCarousel}
         onClose={() => setShowCarousel(false)}
+        characterId={id}
         characterName={character?.name || "personagem"}
         availableShots={carouselShots}
       />

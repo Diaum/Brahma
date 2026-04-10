@@ -6,12 +6,15 @@ import {
   Slide,
   CoverSlide,
   TextSlide,
+  CtaSlide,
   CoverLayout,
   TextLayout,
   renderSlide,
   canvasToBlob,
   SLIDE_W,
   SLIDE_H,
+  DEFAULT_CTA_HEADLINE,
+  DEFAULT_CTA_BODY,
 } from "@/lib/carousel-render";
 
 interface ShotOption {
@@ -23,6 +26,7 @@ interface ShotOption {
 interface CarouselBuilderProps {
   open: boolean;
   onClose: () => void;
+  characterId: string;
   characterName: string;
   availableShots: ShotOption[];
 }
@@ -42,6 +46,12 @@ const DEFAULT_TEXT: TextSlide = {
   bgColor: "#000000",
   textColor: "#ffffff",
   layout: "centered",
+};
+
+const DEFAULT_CTA: CtaSlide = {
+  type: "cta",
+  headline: DEFAULT_CTA_HEADLINE,
+  body: DEFAULT_CTA_BODY,
 };
 
 // Small canvas thumbnail for the left sidebar
@@ -71,6 +81,7 @@ const MAX_SLIDES = 8;
 export function CarouselBuilder({
   open,
   onClose,
+  characterId,
   characterName,
   availableShots,
 }: CarouselBuilderProps) {
@@ -79,10 +90,13 @@ export function CarouselBuilder({
   const [pickingCover, setPickingCover] = useState(false);
   const [pickingBgFor, setPickingBgFor] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [globalOverlayOpacity, setGlobalOverlayOpacity] = useState(0.65);
+  const [saving, setSaving] = useState(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
 
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Initialize with 4 slides when opened
+  // Initialize with 4 editable slides + CTA at end
   useEffect(() => {
     if (open && slides.length === 0) {
       setSlides([
@@ -90,6 +104,7 @@ export function CarouselBuilder({
         { ...DEFAULT_TEXT },
         { ...DEFAULT_TEXT },
         { ...DEFAULT_TEXT },
+        { ...DEFAULT_CTA },
       ]);
       setActiveIdx(0);
     }
@@ -105,6 +120,11 @@ export function CarouselBuilder({
     renderSlide(canvas, slide);
   }, [activeIdx, slides, open]);
 
+  // Helper: CTA is always the last slide
+  const ctaIdx = slides.length - 1;
+  // Count of editable slides (excludes CTA)
+  const editableCount = slides.length - 1;
+
   function updateSlide(idx: number, patch: Partial<Slide>) {
     setSlides((prev) =>
       prev.map((s, i) => (i === idx ? ({ ...s, ...patch } as Slide) : s))
@@ -112,28 +132,47 @@ export function CarouselBuilder({
   }
 
   function addSlide() {
-    if (slides.length >= MAX_SLIDES) return;
-    setSlides((prev) => [...prev, { ...DEFAULT_TEXT }]);
-    setActiveIdx(slides.length);
+    if (editableCount >= MAX_SLIDES) return;
+    // Insert new slide BEFORE the CTA
+    setSlides((prev) => {
+      const withoutCta = prev.slice(0, -1);
+      const cta = prev[prev.length - 1];
+      return [...withoutCta, { ...DEFAULT_TEXT }, cta];
+    });
+    setActiveIdx(slides.length - 1);
   }
 
   function removeSlide(idx: number) {
-    if (slides.length <= MIN_SLIDES) return;
     if (idx === 0) return; // can't remove cover
+    if (idx === ctaIdx) return; // can't remove CTA
+    if (editableCount <= MIN_SLIDES) return;
     setSlides((prev) => prev.filter((_, i) => i !== idx));
     if (activeIdx >= idx) setActiveIdx(Math.max(0, activeIdx - 1));
   }
 
   function moveSlide(idx: number, dir: -1 | 1) {
     if (idx === 0) return; // cover stays first
+    if (idx === ctaIdx) return; // cta stays last
     const targetIdx = idx + dir;
-    if (targetIdx <= 0 || targetIdx >= slides.length) return;
+    if (targetIdx <= 0 || targetIdx >= ctaIdx) return; // can't swap with cover or cta
     setSlides((prev) => {
       const next = [...prev];
       [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
       return next;
     });
     setActiveIdx(targetIdx);
+  }
+
+  // Sync global opacity to all text slides with images
+  function updateGlobalOpacity(value: number) {
+    setGlobalOverlayOpacity(value);
+    setSlides((prev) =>
+      prev.map((s) =>
+        s.type === "text" && s.imageUrl
+          ? { ...s, overlayOpacity: value }
+          : s
+      )
+    );
   }
 
   function pickCoverImage(shot: ShotOption) {
@@ -145,6 +184,24 @@ export function CarouselBuilder({
     if (pickingBgFor === null) return;
     updateSlide(pickingBgFor, { imageUrl: shot.image_url } as Partial<Slide>);
     setPickingBgFor(null);
+  }
+
+  async function saveToDb() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/characters/${characterId}/carousels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedName(data.name);
+        setTimeout(() => setSavedName(null), 3000);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function downloadAll() {
@@ -241,7 +298,7 @@ export function CarouselBuilder({
                 <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
                   {i + 1}
                 </div>
-                {i > 0 && slides.length > MIN_SLIDES && (
+                {i > 0 && i !== ctaIdx && editableCount > MIN_SLIDES && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -252,7 +309,7 @@ export function CarouselBuilder({
                     ✕
                   </button>
                 )}
-                {i > 0 && (
+                {i > 0 && i !== ctaIdx && (
                   <div className="absolute bottom-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
                     <button
                       onClick={(e) => {
@@ -274,10 +331,15 @@ export function CarouselBuilder({
                     </button>
                   </div>
                 )}
+                {i === ctaIdx && (
+                  <div className="absolute top-1 right-1 bg-accent text-black text-[9px] font-bold px-1 rounded">
+                    CTA
+                  </div>
+                )}
               </div>
             ))}
 
-            {slides.length < MAX_SLIDES && (
+            {editableCount < MAX_SLIDES && (
               <button
                 onClick={addSlide}
                 className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted hover:text-accent hover:border-accent transition cursor-pointer"
@@ -509,22 +571,20 @@ export function CarouselBuilder({
                 {(slide as TextSlide).imageUrl && (
                   <div>
                     <label className="text-xs text-muted block mb-1.5">
-                      Escurecimento do fundo (
-                      {Math.round(((slide as TextSlide).overlayOpacity ?? 0.65) * 100)}%)
+                      Escurecimento (global: {Math.round(globalOverlayOpacity * 100)}%)
                     </label>
                     <input
                       type="range"
                       min="0"
                       max="0.95"
                       step="0.05"
-                      value={(slide as TextSlide).overlayOpacity ?? 0.65}
-                      onChange={(e) =>
-                        updateSlide(activeIdx, {
-                          overlayOpacity: parseFloat(e.target.value),
-                        } as Partial<Slide>)
-                      }
+                      value={globalOverlayOpacity}
+                      onChange={(e) => updateGlobalOpacity(parseFloat(e.target.value))}
                       className="w-full accent-accent cursor-pointer"
                     />
+                    <p className="text-[10px] text-muted mt-1">
+                      Aplica a todos os slides com imagem
+                    </p>
                   </div>
                 )}
 
@@ -561,20 +621,79 @@ export function CarouselBuilder({
                 </div>
               </>
             )}
+
+            {slide?.type === "cta" && (
+              <>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Call to Action (final)
+                </h3>
+                <div className="bg-accent/10 border border-accent/30 rounded-lg p-3">
+                  <p className="text-xs text-accent">
+                    Este slide e fixo no final do carrossel e apresenta o Diaum.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Titulo
+                  </label>
+                  <input
+                    type="text"
+                    value={(slide as CtaSlide).headline}
+                    onChange={(e) =>
+                      updateSlide(activeIdx, { headline: e.target.value } as Partial<Slide>)
+                    }
+                    maxLength={40}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Chamada
+                  </label>
+                  <textarea
+                    value={(slide as CtaSlide).body}
+                    onChange={(e) =>
+                      updateSlide(activeIdx, { body: e.target.value } as Partial<Slide>)
+                    }
+                    maxLength={240}
+                    rows={5}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent resize-none"
+                  />
+                  <p className="text-[10px] text-muted mt-1">
+                    {(slide as CtaSlide).body.length}/240
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between">
-          <p className="text-xs text-muted">
-            Minimo {MIN_SLIDES} • Maximo {MAX_SLIDES} slides • Formato 1080x1350
-          </p>
+          <div className="text-xs text-muted">
+            {savedName ? (
+              <span className="text-green-400">✓ Salvo como {savedName}</span>
+            ) : (
+              <>
+                {editableCount} slides editaveis + CTA • Formato 1080x1350
+              </>
+            )}
+          </div>
           <div className="flex gap-3">
             <button
               onClick={handleClose}
               className="text-muted hover:text-foreground text-sm px-3 cursor-pointer"
             >
               Fechar
+            </button>
+            <button
+              onClick={saveToDb}
+              disabled={saving || !coverIsValid}
+              className="bg-card border border-border text-foreground font-medium px-5 py-2 rounded-lg hover:bg-card-hover transition disabled:opacity-50 cursor-pointer text-sm"
+            >
+              {saving ? "Salvando..." : "Salvar"}
             </button>
             <button
               onClick={downloadAll}
