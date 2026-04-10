@@ -564,47 +564,43 @@ export async function renderCtaSlide(
   canvas.width = SLIDE_W;
   canvas.height = SLIDE_H;
 
-  // Dark gradient background
-  const gradient = ctx.createLinearGradient(0, 0, 0, SLIDE_H);
-  gradient.addColorStop(0, "#0a0a0a");
-  gradient.addColorStop(1, "#000000");
-  ctx.fillStyle = gradient;
+  // White background
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
 
   // Try to load and center logo
   try {
     const logo = await loadImage(DIAUM_LOGO_URL);
-    const logoSize = 360;
+    const logoSize = 460;
     const logoX = (SLIDE_W - logoSize) / 2;
-    const logoY = 260;
+    const logoY = 240;
     ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
   } catch {
-    // Fallback: simple circle
-    ctx.fillStyle = "#1a1a1a";
-    ctx.beginPath();
-    ctx.arc(SLIDE_W / 2, 440, 180, 0, Math.PI * 2);
-    ctx.fill();
+    // Fallback: simple black square
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect((SLIDE_W - 460) / 2, 240, 460, 460);
   }
 
-  // Headline
-  ctx.fillStyle = "#ffffff";
+  // Headline — dark text on white
+  ctx.fillStyle = "#0a0a0a";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = "900 100px system-ui, sans-serif";
-  ctx.fillText(upper(slide.headline), SLIDE_W / 2, 720);
+  ctx.fillText(upper(slide.headline), SLIDE_W / 2, 800);
 
   // Body text
   ctx.font = "500 42px system-ui, sans-serif";
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = 0.75;
   const bodyLines = wrapText(ctx, slide.body, SLIDE_W - 160);
   const bodyLineH = 56;
-  const bodyStartY = 830;
+  const bodyStartY = 900;
   bodyLines.forEach((line, i) => {
     ctx.fillText(line, SLIDE_W / 2, bodyStartY + i * bodyLineH);
   });
   ctx.globalAlpha = 1;
 
-  drawWatermark(ctx, "#ffffff");
+  // Watermark in dark on white bg
+  drawWatermark(ctx, "#0a0a0a");
 }
 
 export async function renderSlide(

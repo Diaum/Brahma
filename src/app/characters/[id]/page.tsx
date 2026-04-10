@@ -2561,7 +2561,8 @@ export default function CharacterPage() {
                       </div>
                       <button
                         onClick={() => handleDeleteCarousel(car.id)}
-                        className="absolute top-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        className="absolute top-2 right-2 bg-black/80 text-white text-xs w-6 h-6 rounded-full hover:bg-red-600 transition cursor-pointer flex items-center justify-center"
+                        title="Excluir carrossel"
                       >
                         ✕
                       </button>
