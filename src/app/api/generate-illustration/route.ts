@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateImage } from "@/lib/gemini-image";
 import { supabase } from "@/lib/supabase";
 
-const ILLUSTRATION_STYLE = `cartoon vector illustration in the style of Scratch AI Instagram infographics, bold thick outlines, cel-shaded flat colors, exaggerated proportions, simple rounded character design, clean background with solid gradient and simple geometric accents, social media carousel slide format, 4:5 aspect ratio, infographic style, bold typography integrated into the image composition, startup illustration aesthetic, friendly approachable characters with minimal facial details, warm earthy tones for characters, educational visual storytelling. Small watermark text "@diaum_app" at the bottom center of the image. NO realistic style, NO 3D rendering, NO photorealism, NO complex textures`;
+const ILLUSTRATION_STYLE = `cartoon vector illustration in the style of Scratch AI Instagram infographics, bold thick outlines, cel-shaded flat colors, exaggerated proportions, simple rounded character design, clean background with solid gradient and simple geometric accents, social media carousel slide format, 4:5 aspect ratio, infographic style, startup illustration aesthetic, friendly approachable characters with minimal facial details, warm earthy tones for characters, educational visual storytelling. Small watermark text "@diaum_app" at the bottom center. NO realistic style, NO 3D rendering, NO photorealism, NO complex textures, NO rainbow colors unless specified`;
 
 export async function POST(request: Request) {
   try {
@@ -28,24 +28,27 @@ export async function POST(request: Request) {
 
     const palette = color_palette || "dark green gradient background";
 
-    // Build prompt with text integration (like Scratch AI style)
+    // Build prompt — ONLY visual scene, no text content (text will be overlaid or is handled by the model naturally)
+    // Include headline as integrated text in the image
     let prompt = `${ILLUSTRATION_STYLE}, ${palette}.
 
 scene: ${sanitize(scene)}`;
 
-    // Add text to be rendered IN the image (like the reference images)
+    // Add headline as bold text integrated into the image layout
     if (headline) {
       prompt += `
 
-text on image (bold, large headline at the top, white or light color, uppercase):
-"${sanitize(headline).toUpperCase()}"`;
+Bold large text integrated at the top of the image: "${sanitize(headline).toUpperCase()}"`;
     }
 
+    // Subtext only once, small, below the headline
     if (subtext) {
-      prompt += `
+      prompt += `. Smaller text below: "${sanitize(subtext)}"`;
+    }
 
-subtext (smaller text below headline or at bottom, white or light):
-"${sanitize(subtext)}"`;
+    // Enforce color palette strictly
+    if (palette.includes("black and white") || palette.includes("monochrome")) {
+      prompt += `. STRICT monochrome: ALL elements must be black, white, and grayscale. NO color at all. NO colored accents.`;
     }
 
     const result = await generateImage({

@@ -38,21 +38,31 @@ ${sanitized}
 Crie um plano de 4 ilustracoes sobre esse tema para Instagram (formato 4:5):
 
 1. HOOK (capa): a mais impactante, com headline sensacionalista que para o scroll
-2. SLIDE 2: desenvolve o primeiro ponto/dado
-3. SLIDE 3: aprofunda com outro insight
-4. SLIDE 4 (CTA): chamada para acao sobre o app Diaum
+2. SLIDE 2: desenvolve o primeiro ponto/dado do artigo
+3. SLIDE 3: aprofunda com outro insight do artigo
+4. SLIDE 4: reflexao final ou dado de impacto que fecha a narrativa
+
+TODAS as 4 ilustracoes devem ser sobre o CONTEUDO do artigo. NAO inclua CTA sobre nenhum app — o CTA sera adicionado automaticamente como 5o slide.
 
 Para cada ilustracao retorne:
-- "headline": titulo em CAPSLOCK que aparece NA imagem (max 50 chars, portugues)
-- "subtext": texto menor que complementa (max 100 chars, portugues)
-- "scene": descricao da cena em INGLES para geracao de imagem (descreva personagem, acao, objetos, composicao visual, metafora visual)
+- "headline": titulo CURTO em PORTUGUES que aparece NA imagem (max 50 chars). CAPSLOCK. Sensacionalista.
+- "subtext": texto menor em PORTUGUES que complementa o headline (max 100 chars)
+- "scene": descricao da cena em INGLES para geracao de imagem. NAO inclua texto/headline/subtext na scene. Descreva APENAS os elementos visuais: personagem, acao, objetos, composicao.
+
+REGRAS para headline e subtext:
+- Sempre em PORTUGUES BRASILEIRO
+- headline em CAPSLOCK
+- Frases curtas e impactantes
 
 REGRAS para scene:
+- APENAS descricao visual em INGLES (personagem, objetos, composicao, metafora)
+- NAO repita o headline ou subtext na scene
 - Descreva um personagem masculino cartoon em alguma situacao visual
 - Use metaforas visuais (correntes, tela brilhando, sombras, etc)
 - NUNCA conteudo explicito — foque em emocao, solidao, habito, celular
 - Inclua detalhes visuais: posicao do personagem, objetos na cena, iluminacao
 - Paleta de cores: ${palette}
+- Se a paleta for preto e branco: TODA a cena deve ser monocromatica, tons de cinza, sem NENHUMA cor
 
 Responda APENAS JSON valido:
 [
