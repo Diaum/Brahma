@@ -33,23 +33,39 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .join("\n");
 
-    const prompt = `Voce e um social media brasileiro especializado em saude masculina. Escreva uma descricao para Instagram para acompanhar esse post (carrossel ou ilustracao).
+    const prompt = `Voce e um social media brasileiro especializado em saude masculina e bem-estar digital. Escreva uma descricao para acompanhar esse post no Instagram.
 
-CONTEUDO DOS SLIDES:
+CONTEUDO DOS SLIDES DO POST:
 ${slideTexts}
 
-REGRAS:
-- NAO copie e cole o texto dos slides — faca um RESUMO em tom conversacional
-- Escreva como social media: direto, humano, sem formalidade
-- Use emoji com moderacao (2-4 no maximo)
-- Inclua 1 CTA sutil (ex: "salva pra lembrar", "manda pra quem precisa ouvir isso")
-- Maximo 5-8 linhas
-- Inclua 5-8 hashtags relevantes no final (saude masculina, bem-estar, etc)
-- NAO use palavras explicitas — fale do tema de forma SFW
-- Tom: vulneravel, honesto, sem julgamento
-${source_url ? `\n- No final, antes das hashtags, adicione:\n📰 Fonte: ${source_url}` : "- NAO inclua fonte/referencia"}
+REGRAS OBRIGATORIAS:
+1. A descricao deve ter entre 400 e 600 caracteres (sem contar hashtags e fonte)
+2. NAO copie os titulos dos slides — escreva um TEXTO ORIGINAL que COMENTA sobre o tema do post
+3. Comece com uma frase de impacto que gere curiosidade (pode ser pergunta ou afirmacao forte)
+4. Desenvolva o tema em 3-4 paragrafos curtos — cada um separado por linha em branco
+5. Use emoji com moderacao (3-5 no total, nunca no inicio de paragrafo)
+6. Inclua 1 CTA claro no final do texto (ex: "Salva esse post e manda pra alguem que precisa ler isso 🔖")
+7. Tom: conversacional, vulneravel, direto, sem julgamento, como se fosse um amigo falando a verdade
+8. NAO use palavras explicitas — fale do tema de forma SFW
+9. NAO use cliches como "voce nao esta sozinho" ou "quebre o silencio"
+${source_url ? `
+10. OBRIGATORIAMENTE adicione esta linha ANTES das hashtags (em linha separada):
 
-Responda APENAS com o texto da descricao, nada mais.`;
+📰 Fonte: ${source_url}` : `
+10. NAO inclua nenhuma linha de fonte/referencia`}
+
+11. Termine com 8-12 hashtags relevantes em linha separada (saude masculina, dependencia digital, bem estar, habitos, etc)
+
+FORMATO DA RESPOSTA (apenas o texto, nada mais):
+[frase de impacto]
+
+[paragrafo 1]
+
+[paragrafo 2]
+
+[CTA]
+${source_url ? `\n📰 Fonte: ${source_url}` : ""}
+#hashtag1 #hashtag2 ...`;
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
