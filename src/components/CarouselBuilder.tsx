@@ -6,6 +6,7 @@ import {
   Slide,
   CoverSlide,
   TextSlide,
+  CoverLayout,
   renderSlide,
   canvasToBlob,
   SLIDE_W,
@@ -30,6 +31,7 @@ const DEFAULT_COVER: CoverSlide = {
   imageUrl: "",
   title: "",
   subtitle: "",
+  layout: "bottom-gradient",
 };
 
 const DEFAULT_TEXT: TextSlide = {
@@ -308,27 +310,54 @@ export function CarouselBuilder({
                     Imagem base
                   </label>
                   {(slide as CoverSlide).imageUrl ? (
-                    <div className="relative">
+                    <div className="flex items-center gap-3">
                       <img
                         src={(slide as CoverSlide).imageUrl}
                         alt="cover"
-                        className="w-full aspect-[4/5] object-cover rounded-lg"
+                        className="w-16 h-20 object-cover rounded-md border border-border"
                       />
                       <button
                         onClick={() => setPickingCover(true)}
-                        className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition rounded-lg flex items-center justify-center text-white text-sm cursor-pointer"
+                        className="text-xs text-accent hover:underline cursor-pointer"
                       >
-                        Trocar
+                        Trocar imagem
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setPickingCover(true)}
-                      className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-sm cursor-pointer"
+                      className="w-full py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-sm cursor-pointer"
                     >
                       Escolher shot
                     </button>
                   )}
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Layout
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["bottom-gradient", "top-strip"] as CoverLayout[]).map(
+                      (layout) => (
+                        <button
+                          key={layout}
+                          onClick={() =>
+                            updateSlide(activeIdx, { layout } as Partial<Slide>)
+                          }
+                          className={`text-xs py-2 rounded-lg border transition cursor-pointer ${
+                            ((slide as CoverSlide).layout || "bottom-gradient") === layout
+                              ? "bg-accent text-black border-accent font-semibold"
+                              : "bg-card border-border text-muted hover:text-foreground"
+                          }`}
+                        >
+                          {layout === "bottom-gradient"
+                            ? "Gradient"
+                            : "Strip Top"}
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -417,16 +446,16 @@ export function CarouselBuilder({
                     Imagem de fundo (opcional)
                   </label>
                   {(slide as TextSlide).imageUrl ? (
-                    <div className="relative group/bg">
+                    <div className="flex items-center gap-3">
                       <img
                         src={(slide as TextSlide).imageUrl}
                         alt="bg"
-                        className="w-full aspect-[4/5] object-cover rounded-lg"
+                        className="w-16 h-20 object-cover rounded-md border border-border"
                       />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/bg:opacity-100 transition rounded-lg flex items-center justify-center gap-2">
+                      <div className="flex flex-col gap-1">
                         <button
                           onClick={() => setPickingBgFor(activeIdx)}
-                          className="text-xs bg-accent text-black px-3 py-1.5 rounded-md font-semibold cursor-pointer"
+                          className="text-xs text-accent hover:underline cursor-pointer text-left"
                         >
                           Trocar
                         </button>
@@ -436,7 +465,7 @@ export function CarouselBuilder({
                               imageUrl: undefined,
                             } as Partial<Slide>)
                           }
-                          className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-md font-semibold cursor-pointer"
+                          className="text-xs text-red-400 hover:underline cursor-pointer text-left"
                         >
                           Remover
                         </button>
@@ -445,7 +474,7 @@ export function CarouselBuilder({
                   ) : (
                     <button
                       onClick={() => setPickingBgFor(activeIdx)}
-                      className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
+                      className="w-full py-3 border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
                     >
                       + Adicionar imagem
                     </button>

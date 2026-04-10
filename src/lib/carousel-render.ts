@@ -4,11 +4,14 @@ export const SLIDE_W = 1080;
 export const SLIDE_H = 1350;
 export const WATERMARK = "@diaum_app";
 
+export type CoverLayout = "bottom-gradient" | "top-strip";
+
 export interface CoverSlide {
   type: "cover";
   imageUrl: string;
   title?: string;
   subtitle?: string;
+  layout?: CoverLayout;
 }
 
 export interface TextSlide {
@@ -77,11 +80,11 @@ function wrapText(
 function drawWatermark(ctx: CanvasRenderingContext2D, color = "#ffffff") {
   ctx.save();
   ctx.fillStyle = color;
-  ctx.font = "500 28px system-ui, sans-serif";
+  ctx.font = "600 40px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.globalAlpha = 0.7;
-  ctx.fillText(WATERMARK, SLIDE_W / 2, SLIDE_H - 50);
+  ctx.globalAlpha = 0.85;
+  ctx.fillText(WATERMARK, SLIDE_W / 2, SLIDE_H - 70);
   ctx.restore();
 }
 
@@ -132,47 +135,88 @@ export async function renderCoverSlide(
     ctx.fillText("Imagem nao carregada", SLIDE_W / 2, SLIDE_H / 2);
   }
 
-  // Optional title overlay (bottom, with dark gradient)
+  // Optional title overlay
   if (slide.title) {
-    // Gradient overlay
-    const gradient = ctx.createLinearGradient(0, SLIDE_H * 0.5, 0, SLIDE_H);
-    gradient.addColorStop(0, "rgba(0,0,0,0)");
-    gradient.addColorStop(1, "rgba(0,0,0,0.85)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, SLIDE_H * 0.5, SLIDE_W, SLIDE_H * 0.5);
+    const layout: CoverLayout = slide.layout || "bottom-gradient";
 
-    // Title — extra large and bold
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "900 120px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.7)";
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 4;
-    const titleLines = wrapText(ctx, slide.title, SLIDE_W - 100);
-    const titleLineH = 130;
-    const startY = SLIDE_H - 340 - (titleLines.length - 1) * titleLineH;
-    titleLines.forEach((line, i) => {
-      ctx.fillText(line, SLIDE_W / 2, startY + i * titleLineH);
-    });
+    if (layout === "bottom-gradient") {
+      // Style 1: title at bottom with gradient overlay
+      const gradient = ctx.createLinearGradient(0, SLIDE_H * 0.5, 0, SLIDE_H);
+      gradient.addColorStop(0, "rgba(0,0,0,0)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.85)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, SLIDE_H * 0.5, SLIDE_W, SLIDE_H * 0.5);
 
-    // Subtitle
-    if (slide.subtitle) {
-      ctx.font = "500 44px system-ui, sans-serif";
-      ctx.shadowBlur = 15;
-      ctx.globalAlpha = 0.95;
-      const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
-      const subStartY = startY + titleLines.length * titleLineH + 30;
-      subLines.forEach((line, i) => {
-        ctx.fillText(line, SLIDE_W / 2, subStartY + i * 54);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 120px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.7)";
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 4;
+      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 100);
+      const titleLineH = 130;
+      const subHeight = slide.subtitle ? 80 : 0;
+      const startY =
+        SLIDE_H - 240 - subHeight - (titleLines.length - 1) * titleLineH;
+      titleLines.forEach((line, i) => {
+        ctx.fillText(line, SLIDE_W / 2, startY + i * titleLineH);
       });
-      ctx.globalAlpha = 1;
-    }
 
-    // Reset shadow before watermark
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
+      if (slide.subtitle) {
+        ctx.font = "500 44px system-ui, sans-serif";
+        ctx.shadowBlur = 15;
+        ctx.globalAlpha = 0.95;
+        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
+        const subStartY = startY + titleLines.length * titleLineH + 30;
+        subLines.forEach((line, i) => {
+          ctx.fillText(line, SLIDE_W / 2, subStartY + i * 54);
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+    } else if (layout === "top-strip") {
+      // Style 2: solid color strip at top with title left-aligned
+      const stripH = 420;
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, SLIDE_W, stripH);
+
+      // Accent line
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(80, stripH - 8, 120, 6);
+
+      // Title left-aligned, white
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 110px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      const titleLines = wrapText(ctx, slide.title, SLIDE_W - 160);
+      const titleLineH = 120;
+      const totalTitleH = titleLines.length * titleLineH;
+      const startY = (stripH - totalTitleH) / 2 + 90;
+      titleLines.forEach((line, i) => {
+        ctx.fillText(line, 80, startY + i * titleLineH);
+      });
+
+      // Subtitle below the strip
+      if (slide.subtitle) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "500 42px system-ui, sans-serif";
+        ctx.shadowColor = "rgba(0,0,0,0.9)";
+        ctx.shadowBlur = 25;
+        ctx.shadowOffsetY = 3;
+        const subLines = wrapText(ctx, slide.subtitle, SLIDE_W - 160);
+        subLines.forEach((line, i) => {
+          ctx.fillText(line, 80, stripH + 90 + i * 54);
+        });
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+      }
+    }
   }
 
   drawWatermark(ctx, "#ffffff");
