@@ -61,6 +61,18 @@ export default function CharacterPage() {
   // Selected episode (when null, shows episode list; when set, shows shots)
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
 
+  // Load shots only when an episode is selected (lazy)
+  useEffect(() => {
+    if (!selectedEpisodeId) return;
+    if (shotsByEp[selectedEpisodeId]) return; // already loaded
+
+    fetch(`/api/characters/${id}/episodes/${selectedEpisodeId}/shots`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((shots) => {
+        setShotsByEp((prev) => ({ ...prev, [selectedEpisodeId]: shots }));
+      });
+  }, [selectedEpisodeId, id]);
+
   // New episode
   const [newEpTitle, setNewEpTitle] = useState("");
   const [creatingEp, setCreatingEp] = useState(false);
@@ -521,14 +533,21 @@ export default function CharacterPage() {
     });
   }
 
+  const [shotsSummary, setShotsSummary] = useState<Record<string, { total: number; approved: number }>>({});
+
   const loadData = useCallback(async () => {
     try {
-      const [charRes, epsRes] = await Promise.all([
+      const [charRes, epsRes, summaryRes] = await Promise.all([
         fetch(`/api/characters/${id}`),
         fetch(`/api/characters/${id}/episodes`),
+        fetch(`/api/characters/${id}/shots-summary`),
       ]);
 
       if (charRes.ok) setCharacter(await charRes.json());
+
+      if (summaryRes.ok) {
+        setShotsSummary(await summaryRes.json());
+      }
 
       if (epsRes.ok) {
         const epList: Episode[] = await epsRes.json();
@@ -540,18 +559,6 @@ export default function CharacterPage() {
           drafts[ep.id] = ep.script || "";
         });
         setScriptDrafts((prev) => ({ ...drafts, ...prev }));
-
-        // Load shots for each episode
-        const shotsMap: Record<string, Shot[]> = {};
-        await Promise.all(
-          epList.map(async (ep) => {
-            const res = await fetch(
-              `/api/characters/${id}/episodes/${ep.id}/shots`
-            );
-            if (res.ok) shotsMap[ep.id] = await res.json();
-          })
-        );
-        setShotsByEp(shotsMap);
       }
     } finally {
       setLoading(false);
@@ -562,10 +569,9 @@ export default function CharacterPage() {
     loadData();
   }, [loadData]);
 
-  // --- Stats ---
-  const allShots = Object.values(shotsByEp).flat();
-  const approvedCount = allShots.filter((s) => s.status === "approved").length;
-  const totalShots = allShots.length;
+  // --- Stats (from summary, not full shots) ---
+  const totalShots = Object.values(shotsSummary).reduce((sum, s) => sum + s.total, 0);
+  const approvedCount = Object.values(shotsSummary).reduce((sum, s) => sum + s.approved, 0);
 
   // --- Create episode ---
   async function handleCreateEpisode() {
@@ -1184,10 +1190,9 @@ export default function CharacterPage() {
         {!selectedEpisodeId && episodes.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {episodes.map((ep, epIndex) => {
-              const epShotsCount = (shotsByEp[ep.id] || []).length;
-              const approvedCount = (shotsByEp[ep.id] || []).filter(
-                (s) => s.status === "approved" || s.status === "animated"
-              ).length;
+              const summary = shotsSummary[ep.id] || { total: 0, approved: 0 };
+              const epShotsCount = summary.total;
+              const approvedCount = summary.approved;
 
               return (
                 <button
@@ -1201,6 +1206,8 @@ export default function CharacterPage() {
                       <img
                         src={ep.cover_image_url}
                         alt={ep.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-[1.02] transition"
                       />
                     ) : (
@@ -1456,6 +1463,8 @@ export default function CharacterPage() {
                               <img
                                 src={shot.image_url}
                                 alt={shot.prompt_scene}
+                                loading="lazy"
+                                decoding="async"
                                 className={`w-full aspect-[9/16] object-cover transition ${isGenerating ? "opacity-40" : ""}`}
                               />
                             </button>

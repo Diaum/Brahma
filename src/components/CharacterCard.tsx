@@ -29,6 +29,8 @@ export function CharacterCard({
           <img
             src={cover_image_url}
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="w-20 h-20 rounded-full object-cover border border-accent/30 group-hover:border-accent/60 transition"
           />
         ) : (

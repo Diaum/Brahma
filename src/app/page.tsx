@@ -35,18 +35,25 @@ export default function Home() {
     loadCharacters();
   }, [loadCharacters]);
 
-  // Re-fetch when page becomes visible (fixes back navigation bug)
+  // Re-fetch when page becomes visible (debounced, only if last fetch > 30s ago)
   useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState === "visible") {
+    let lastFetch = Date.now();
+    function maybeRefetch() {
+      if (Date.now() - lastFetch > 30000) {
+        lastFetch = Date.now();
         loadCharacters();
       }
     }
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        maybeRefetch();
+      }
+    }
     document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", loadCharacters);
+    window.addEventListener("focus", maybeRefetch);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", loadCharacters);
+      window.removeEventListener("focus", maybeRefetch);
     };
   }, [loadCharacters]);
 
