@@ -17,7 +17,9 @@ export function Breadcrumbs() {
   if (segments.length === 0) return null;
 
   const crumbs = segments.map((seg, i) => {
-    const href = "/" + segments.slice(0, i + 1).join("/");
+    let href = "/" + segments.slice(0, i + 1).join("/");
+    // /characters doesn't exist — redirect to home
+    if (href === "/characters") href = "/";
     const label = labels[seg] || decodeURIComponent(seg);
     const isLast = i === segments.length - 1;
 
