@@ -40,6 +40,25 @@ const DEFAULT_TEXT: TextSlide = {
   textColor: "#ffffff",
 };
 
+// Small canvas thumbnail for the left sidebar
+function SlideThumbnail({ slide }: { slide: Slide }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    renderSlide(canvas, slide).catch(() => {});
+  }, [slide]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full object-cover"
+      style={{ aspectRatio: "4/5" }}
+    />
+  );
+}
+
 const MAX_TITLE = 80;
 const MAX_BODY = 280;
 const MIN_SLIDES = 4;
@@ -54,6 +73,7 @@ export function CarouselBuilder({
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [pickingCover, setPickingCover] = useState(false);
+  const [pickingBgFor, setPickingBgFor] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
 
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -115,6 +135,12 @@ export function CarouselBuilder({
   function pickCoverImage(shot: ShotOption) {
     updateSlide(0, { type: "cover", imageUrl: shot.image_url } as Partial<Slide>);
     setPickingCover(false);
+  }
+
+  function pickBgImage(shot: ShotOption) {
+    if (pickingBgFor === null) return;
+    updateSlide(pickingBgFor, { imageUrl: shot.image_url } as Partial<Slide>);
+    setPickingBgFor(null);
   }
 
   async function downloadAll() {
@@ -199,21 +225,13 @@ export function CarouselBuilder({
                 }`}
                 onClick={() => setActiveIdx(i)}
               >
-                <div className="aspect-[4/5] bg-background rounded-md overflow-hidden flex items-center justify-center text-muted text-xs p-2 text-center">
-                  {s.type === "cover" ? (
-                    (s as CoverSlide).imageUrl ? (
-                      <img
-                        src={(s as CoverSlide).imageUrl}
-                        alt="cover"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span>Capa</span>
-                    )
+                <div className="aspect-[4/5] bg-background rounded-md overflow-hidden flex items-center justify-center text-muted text-[10px]">
+                  {s.type === "cover" && !(s as CoverSlide).imageUrl ? (
+                    <span className="p-2 text-center">Escolha uma capa</span>
+                  ) : s.type === "text" && !(s as TextSlide).title && !(s as TextSlide).body && !(s as TextSlide).imageUrl ? (
+                    <span className="p-2 text-center">Slide {i + 1}</span>
                   ) : (
-                    <span className="line-clamp-4 font-semibold">
-                      {(s as TextSlide).title || `Slide ${i + 1}`}
-                    </span>
+                    <SlideThumbnail slide={s} />
                   )}
                 </div>
                 <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
@@ -394,11 +412,71 @@ export function CarouselBuilder({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Imagem de fundo (opcional)
+                  </label>
+                  {(slide as TextSlide).imageUrl ? (
+                    <div className="relative group/bg">
+                      <img
+                        src={(slide as TextSlide).imageUrl}
+                        alt="bg"
+                        className="w-full aspect-[4/5] object-cover rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/bg:opacity-100 transition rounded-lg flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setPickingBgFor(activeIdx)}
+                          className="text-xs bg-accent text-black px-3 py-1.5 rounded-md font-semibold cursor-pointer"
+                        >
+                          Trocar
+                        </button>
+                        <button
+                          onClick={() =>
+                            updateSlide(activeIdx, {
+                              imageUrl: undefined,
+                            } as Partial<Slide>)
+                          }
+                          className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-md font-semibold cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setPickingBgFor(activeIdx)}
+                      className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-lg flex items-center justify-center text-muted hover:text-accent hover:border-accent transition text-xs cursor-pointer"
+                    >
+                      + Adicionar imagem
+                    </button>
+                  )}
+                </div>
+
+                {(slide as TextSlide).imageUrl && (
                   <div>
                     <label className="text-xs text-muted block mb-1.5">
-                      Fundo
+                      Escurecimento do fundo (
+                      {Math.round(((slide as TextSlide).overlayOpacity ?? 0.65) * 100)}%)
                     </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.95"
+                      step="0.05"
+                      value={(slide as TextSlide).overlayOpacity ?? 0.65}
+                      onChange={(e) =>
+                        updateSlide(activeIdx, {
+                          overlayOpacity: parseFloat(e.target.value),
+                        } as Partial<Slide>)
+                      }
+                      className="w-full accent-accent cursor-pointer"
+                    />
+                  </div>
+                )}
+
+                {!(slide as TextSlide).imageUrl && (
+                  <div>
+                    <label className="text-xs text-muted block mb-1.5">Fundo</label>
                     <input
                       type="color"
                       value={(slide as TextSlide).bgColor}
@@ -410,21 +488,22 @@ export function CarouselBuilder({
                       className="w-full h-10 bg-background border border-border rounded-lg cursor-pointer"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs text-muted block mb-1.5">
-                      Texto
-                    </label>
-                    <input
-                      type="color"
-                      value={(slide as TextSlide).textColor}
-                      onChange={(e) =>
-                        updateSlide(activeIdx, {
-                          textColor: e.target.value,
-                        } as Partial<Slide>)
-                      }
-                      className="w-full h-10 bg-background border border-border rounded-lg cursor-pointer"
-                    />
-                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs text-muted block mb-1.5">
+                    Cor do texto
+                  </label>
+                  <input
+                    type="color"
+                    value={(slide as TextSlide).textColor}
+                    onChange={(e) =>
+                      updateSlide(activeIdx, {
+                        textColor: e.target.value,
+                      } as Partial<Slide>)
+                    }
+                    className="w-full h-10 bg-background border border-border rounded-lg cursor-pointer"
+                  />
                 </div>
               </>
             )}
@@ -454,20 +533,28 @@ export function CarouselBuilder({
         </div>
       </div>
 
-      {/* Shot picker modal */}
-      {pickingCover && (
+      {/* Shot picker modal (for cover OR background) */}
+      {(pickingCover || pickingBgFor !== null) && (
         <div
           className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setPickingCover(false)}
+          onClick={() => {
+            setPickingCover(false);
+            setPickingBgFor(null);
+          }}
         >
           <div
             className="bg-card border border-border rounded-2xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h3 className="font-semibold">Escolher imagem de capa</h3>
+              <h3 className="font-semibold">
+                {pickingCover ? "Escolher imagem de capa" : "Escolher imagem de fundo"}
+              </h3>
               <button
-                onClick={() => setPickingCover(false)}
+                onClick={() => {
+                  setPickingCover(false);
+                  setPickingBgFor(null);
+                }}
                 className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
               >
                 ✕
@@ -483,7 +570,10 @@ export function CarouselBuilder({
                   {availableShots.map((shot) => (
                     <button
                       key={shot.id}
-                      onClick={() => pickCoverImage(shot)}
+                      onClick={() => {
+                        if (pickingCover) pickCoverImage(shot);
+                        else pickBgImage(shot);
+                      }}
                       className="group bg-background border border-border rounded-lg overflow-hidden hover:border-accent transition cursor-pointer"
                     >
                       <img

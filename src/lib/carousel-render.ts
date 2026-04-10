@@ -17,6 +17,8 @@ export interface TextSlide {
   body: string;
   bgColor: string;
   textColor: string;
+  imageUrl?: string; // optional background image
+  overlayOpacity?: number; // 0-1, default 0.65
 }
 
 export type Slide = CoverSlide | TextSlide;
@@ -185,23 +187,57 @@ export async function renderCoverSlide(
   drawWatermark(ctx, "#ffffff");
 }
 
-export function renderTextSlide(
+export async function renderTextSlide(
   canvas: HTMLCanvasElement,
   slide: TextSlide
-): void {
+): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
   canvas.width = SLIDE_W;
   canvas.height = SLIDE_H;
 
-  // Background
-  ctx.fillStyle = slide.bgColor || "#000";
-  ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+  // Background: image or solid color
+  if (slide.imageUrl) {
+    try {
+      const img = await loadImage(slide.imageUrl);
+      const imgRatio = img.width / img.height;
+      const slideRatio = SLIDE_W / SLIDE_H;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > slideRatio) {
+        sw = img.height * slideRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / slideRatio;
+        sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, SLIDE_W, SLIDE_H);
+
+      // Dark overlay so text is readable
+      const overlayOpacity = slide.overlayOpacity ?? 0.65;
+      ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
+      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+    } catch {
+      // Fallback to solid background
+      ctx.fillStyle = slide.bgColor || "#000";
+      ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+    }
+  } else {
+    ctx.fillStyle = slide.bgColor || "#000";
+    ctx.fillRect(0, 0, SLIDE_W, SLIDE_H);
+  }
 
   ctx.fillStyle = slide.textColor || "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
+
+  // Add text shadow for readability when using background image
+  if (slide.imageUrl) {
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+  }
 
   // Title (bold, large)
   ctx.font = "bold 80px system-ui, sans-serif";
@@ -232,6 +268,12 @@ export function renderTextSlide(
   });
   ctx.globalAlpha = 1;
 
+  // Reset shadow before watermark
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
   drawWatermark(ctx, slide.textColor || "#ffffff");
 }
 
@@ -242,7 +284,7 @@ export async function renderSlide(
   if (slide.type === "cover") {
     await renderCoverSlide(canvas, slide);
   } else {
-    renderTextSlide(canvas, slide);
+    await renderTextSlide(canvas, slide);
   }
 }
 
