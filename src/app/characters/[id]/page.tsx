@@ -408,6 +408,36 @@ export default function CharacterPage() {
   >([]);
   const [loadingCarouselShots, setLoadingCarouselShots] = useState(false);
 
+  // Saved carousels list
+  interface SavedCarousel {
+    id: string;
+    name: string;
+    slides: unknown[];
+    created_at: string;
+  }
+  const [savedCarousels, setSavedCarousels] = useState<SavedCarousel[]>([]);
+
+  const loadSavedCarousels = useCallback(async () => {
+    const res = await fetch(`/api/characters/${id}/carousels`);
+    if (res.ok) {
+      setSavedCarousels(await res.json());
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadSavedCarousels();
+  }, [loadSavedCarousels]);
+
+  async function handleDeleteCarousel(carouselId: string) {
+    if (!confirm("Excluir este carrossel?")) return;
+    const res = await fetch(`/api/carousels/${carouselId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setSavedCarousels((prev) => prev.filter((c) => c.id !== carouselId));
+    }
+  }
+
   async function openCarousel() {
     setLoadingCarouselShots(true);
     try {
@@ -1336,6 +1366,42 @@ export default function CharacterPage() {
             <button onClick={() => setError(null)} className="text-red-300 hover:text-red-100 ml-3">
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Saved carousels */}
+        {savedCarousels.length > 0 && (
+          <div className="bg-card/40 border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Carrosseis salvos
+              </h3>
+              <span className="text-xs text-muted">{savedCarousels.length}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {savedCarousels.map((car) => (
+                <div
+                  key={car.id}
+                  className="group bg-background border border-border rounded-lg p-3 hover:border-accent/50 transition relative"
+                >
+                  <div className="text-xs font-semibold text-foreground truncate mb-1">
+                    {car.name}
+                  </div>
+                  <div className="text-[10px] text-muted">
+                    {car.slides.length} slides
+                  </div>
+                  <div className="text-[10px] text-muted">
+                    {new Date(car.created_at).toLocaleDateString("pt-BR")}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCarousel(car.id)}
+                    className="absolute top-2 right-2 text-muted hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -2437,6 +2503,7 @@ export default function CharacterPage() {
         characterId={id}
         characterName={character?.name || "personagem"}
         availableShots={carouselShots}
+        onSaved={loadSavedCarousels}
       />
     </div>
   );

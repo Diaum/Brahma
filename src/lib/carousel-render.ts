@@ -133,35 +133,38 @@ export async function renderCoverSlide(
   const imgAreaY = layout === "top-strip" && slide.title ? stripH : 0;
   const imgAreaH = SLIDE_H - imgAreaY;
 
-  try {
-    const img = await loadImage(slide.imageUrl);
+  // Only try to load image if URL is set (avoid 400 on empty state)
+  if (slide.imageUrl) {
+    try {
+      const img = await loadImage(slide.imageUrl);
 
-    // Cover fit within the image area (crop to fill)
-    const imgRatio = img.width / img.height;
-    const areaRatio = SLIDE_W / imgAreaH;
+      // Cover fit within the image area (crop to fill)
+      const imgRatio = img.width / img.height;
+      const areaRatio = SLIDE_W / imgAreaH;
 
-    let sx = 0;
-    let sy = 0;
-    let sw = img.width;
-    let sh = img.height;
+      let sx = 0;
+      let sy = 0;
+      let sw = img.width;
+      let sh = img.height;
 
-    if (imgRatio > areaRatio) {
-      sw = img.height * areaRatio;
-      sx = (img.width - sw) / 2;
-    } else {
-      sh = img.width / areaRatio;
-      sy = (img.height - sh) / 2;
+      if (imgRatio > areaRatio) {
+        sw = img.height * areaRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / areaRatio;
+        sy = (img.height - sh) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
+    } catch (err) {
+      console.error("Failed to load cover image:", err);
+      ctx.fillStyle = "#333";
+      ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
+      ctx.fillStyle = "#666";
+      ctx.font = "40px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Imagem nao carregada", SLIDE_W / 2, imgAreaY + imgAreaH / 2);
     }
-
-    ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, SLIDE_W, imgAreaH);
-  } catch (err) {
-    console.error("Failed to load cover image:", err);
-    ctx.fillStyle = "#333";
-    ctx.fillRect(0, imgAreaY, SLIDE_W, imgAreaH);
-    ctx.fillStyle = "#666";
-    ctx.font = "40px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Imagem nao carregada", SLIDE_W / 2, imgAreaY + imgAreaH / 2);
   }
 
   // Optional title overlay

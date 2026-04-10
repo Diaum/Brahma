@@ -29,6 +29,7 @@ interface CarouselBuilderProps {
   characterId: string;
   characterName: string;
   availableShots: ShotOption[];
+  onSaved?: () => void;
 }
 
 const DEFAULT_COVER: CoverSlide = {
@@ -75,8 +76,8 @@ function SlideThumbnail({ slide }: { slide: Slide }) {
 
 const MAX_TITLE = 80;
 const MAX_BODY = 280;
-const MAX_COVER_TITLE = 41;
-const MAX_COVER_SUBTITLE = 83;
+const MAX_COVER_TITLE = 46;
+const MAX_COVER_SUBTITLE = 88;
 const MIN_SLIDES = 4;
 const MAX_SLIDES = 8;
 
@@ -86,6 +87,7 @@ export function CarouselBuilder({
   characterId,
   characterName,
   availableShots,
+  onSaved,
 }: CarouselBuilderProps) {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -95,6 +97,78 @@ export function CarouselBuilder({
   const [globalOverlayOpacity, setGlobalOverlayOpacity] = useState(0.65);
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
+
+  // AI generation
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiInputText, setAiInputText] = useState("");
+  const [aiThemeHint, setAiThemeHint] = useState("");
+  const [aiMaxPages, setAiMaxPages] = useState(6);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function generateWithAI() {
+    if (!aiInputText.trim() || aiInputText.trim().length < 20) {
+      setAiError("Cole um texto com pelo menos 20 caracteres");
+      return;
+    }
+    setGeneratingAi(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch(
+        `/api/characters/${characterId}/carousels/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: aiInputText.trim(),
+            max_pages: aiMaxPages,
+            theme_hint: aiThemeHint.trim() || undefined,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao gerar carrossel");
+      }
+
+      const data = await res.json();
+
+      // Build new slides from AI response
+      const newCover: CoverSlide = {
+        type: "cover",
+        imageUrl: data.cover.imageUrl || "",
+        title: data.cover.title || "",
+        subtitle: data.cover.subtitle || "",
+        layout: "bottom-gradient",
+      };
+
+      const newTextSlides: TextSlide[] = data.slides.map(
+        (s: { title: string; body: string; imageUrl?: string }) => ({
+          type: "text",
+          title: s.title,
+          body: s.body,
+          bgColor: "#000000",
+          textColor: "#ffffff",
+          layout: "centered",
+          imageUrl: s.imageUrl,
+          overlayOpacity: globalOverlayOpacity,
+        })
+      );
+
+      // Replace editable slides, keep CTA at the end
+      setSlides([newCover, ...newTextSlides, { ...DEFAULT_CTA }]);
+      setActiveIdx(0);
+      setShowAiModal(false);
+      setAiInputText("");
+      setAiThemeHint("");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
 
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -200,6 +274,7 @@ export function CarouselBuilder({
         const data = await res.json();
         setSavedName(data.name);
         setTimeout(() => setSavedName(null), 3000);
+        onSaved?.();
       }
     } finally {
       setSaving(false);
@@ -266,12 +341,20 @@ export function CarouselBuilder({
               {slides.length} slides — {characterName}
             </p>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="bg-accent/10 border border-accent/40 text-accent px-4 py-2 rounded-lg hover:bg-accent/20 transition text-sm font-semibold cursor-pointer"
+            >
+              ✨ Gerar com IA
+            </button>
+            <button
+              onClick={handleClose}
+              className="text-muted hover:text-foreground text-xl cursor-pointer p-1"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Main content */}
@@ -718,6 +801,122 @@ export function CarouselBuilder({
           </div>
         </div>
       </div>
+
+      {/* AI Generation Modal */}
+      {showAiModal && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => !generatingAi && setShowAiModal(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div>
+                <h3 className="font-semibold text-lg">Gerar Carrossel com IA</h3>
+                <p className="text-xs text-muted mt-0.5">
+                  Cole um artigo, ideia ou noticia e a IA cria o carrossel completo
+                </p>
+              </div>
+              <button
+                onClick={() => !generatingAi && setShowAiModal(false)}
+                disabled={generatingAi}
+                className="text-muted hover:text-foreground text-xl cursor-pointer p-1 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {aiError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {aiError}
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs text-muted block mb-1.5">
+                  Texto de referencia
+                </label>
+                <textarea
+                  value={aiInputText}
+                  onChange={(e) => setAiInputText(e.target.value)}
+                  placeholder="Cole aqui um artigo sobre saude mental masculina, uma noticia sobre dependencia digital, ou descreva uma ideia para o carrossel..."
+                  rows={10}
+                  className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-accent resize-y"
+                />
+                <p className="text-[10px] text-muted mt-1">
+                  {aiInputText.length} caracteres
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted block mb-1.5">
+                  Dica de tema (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={aiThemeHint}
+                  onChange={(e) => setAiThemeHint(e.target.value)}
+                  placeholder="Ex: Foque na vergonha da recaida, ou: Use tom motivacional"
+                  className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-muted block mb-1.5">
+                  Maximo de slides
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[4, 5, 6, 7, 8].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setAiMaxPages(n)}
+                      className={`py-2 rounded-lg border text-sm transition cursor-pointer ${
+                        aiMaxPages === n
+                          ? "bg-accent text-black border-accent font-semibold"
+                          : "bg-card border-border text-muted hover:text-foreground"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted mt-1">
+                  A IA escolhe o numero ideal entre 4 e {aiMaxPages}
+                </p>
+              </div>
+
+              {generatingAi && (
+                <div className="flex items-center gap-3 text-accent bg-accent/10 border border-accent/30 rounded-lg p-3">
+                  <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">
+                    IA gerando o carrossel... (pode levar ~20s)
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-border shrink-0 flex gap-3 justify-end">
+              <button
+                onClick={() => !generatingAi && setShowAiModal(false)}
+                disabled={generatingAi}
+                className="text-muted hover:text-foreground text-sm px-3 cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={generateWithAI}
+                disabled={generatingAi || aiInputText.trim().length < 20}
+                className="bg-accent text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 cursor-pointer text-sm"
+              >
+                {generatingAi ? "Gerando..." : "✨ Gerar Carrossel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shot picker modal (for cover OR background) */}
       {(pickingCover || pickingBgFor !== null) && (
